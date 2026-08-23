@@ -16,6 +16,7 @@ export type SceneBlockType = 'text' | 'voice' | 'subtitle' | 'card' | 'image';
 export interface SceneBlockPlan {
   type: SceneBlockType;
   content: string;
+  assetHint?: string;
   /** 用于后续生成或检索视觉素材的描述；旧工程可以省略。 */
   visualPrompt?: string;
   layoutPreset?: LayoutPreset;
@@ -63,10 +64,11 @@ function makeBlock(
     block.props.title = plan.content;
     block.props.body = '';
   } else {
-    const match = matchAsset(plan.visualPrompt ?? '', assets, usedAssetIds, plan.content);
+    const match = matchAsset(plan.visualPrompt ?? '', assets, usedAssetIds, plan.content, plan.assetHint);
     const asset = match?.assetId ? assets.find((item) => item.id === match.assetId) ?? null : null;
     if (match?.assetId) usedAssetIds.push(match.assetId);
     console.log('image block:', plan.visualPrompt ?? '');
+    console.log('assetHint:', plan.assetHint ?? '');
     console.log('matched:', asset?.name ?? null);
     console.log('confidence:', match?.confidence ?? 0);
     block = createImageBlock(asset, canvas, layer, start);

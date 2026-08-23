@@ -1,4 +1,5 @@
 import { scanLocalAssets } from '@/lib/agent/localAssetScanner';
+import { analyzeAssets } from '@/lib/agent/assetAnalyzer';
 import { generateProductVideoPlan, type ProductVideoInput } from '@/lib/agent/productVideoAgent';
 import { scenePlanToSnapshot } from '@/lib/agent/scenePlan';
 import type { LLMProvider } from '@/lib/agent/llmProvider';
@@ -25,9 +26,11 @@ export async function generateProductProject(
   importSnapshot?: (snapshot: ProjectSnapshot) => void,
 ): Promise<ProductProjectResult> {
   const assets = await scanLocalAssets(input.folderPath);
+  const assetInsights = analyzeAssets(assets);
   const videoInput: ProductVideoInput = {
     ...input.productInfo,
     duration: 30,
+    assetInsights,
   };
   const plan = await generateProductVideoPlan(videoInput, provider);
   console.log('assets before scene:', assets);

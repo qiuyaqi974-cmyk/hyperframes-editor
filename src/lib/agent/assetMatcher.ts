@@ -18,10 +18,16 @@ function keywords(value: string): string[] {
 }
 
 /** 基于素材名称、可选标签和视觉提示词的轻量匹配器，不调用视觉模型。 */
-export function matchAsset(visualPrompt: string, assets: Asset[], usedAssetIds: string[] = [], content = ''): AssetMatchResult {
-  const promptKeywords = [...new Set([...keywords(content), ...keywords(visualPrompt)])];
+export function matchAsset(visualPrompt: string, assets: Asset[], usedAssetIds: string[] = [], content = '', assetHint = ''): AssetMatchResult {
   const imageAssets = assets.filter((asset) => asset.kind === 'image') as TaggedAsset[];
   if (!imageAssets.length) return { assetId: null, confidence: 0, reason: '没有可用的图片素材。' };
+
+  if (assetHint) {
+    const hinted = imageAssets.find((asset) => !usedAssetIds.includes(asset.id) && asset.name.toLowerCase().includes(assetHint.toLowerCase()));
+    if (hinted) return { assetId: hinted.id, confidence: 1, reason: `assetHint 指定：${hinted.name}` };
+  }
+
+  const promptKeywords = [...new Set([...keywords(content), ...keywords(visualPrompt)])];
 
   let best: { asset: TaggedAsset; score: number; hits: string[] } | null = null;
   for (const tagged of imageAssets) {
