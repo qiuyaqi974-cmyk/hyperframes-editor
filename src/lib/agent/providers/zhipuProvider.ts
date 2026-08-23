@@ -3,6 +3,12 @@ import type { LLMProvider } from '@/lib/agent/llmProvider';
 const ZHIPU_CHAT_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const REQUEST_TIMEOUT_MS = 30_000;
 
+function defaultApiKey(): string {
+  const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  const nodeEnv = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  return viteEnv?.VITE_ZHIPU_API_KEY ?? nodeEnv?.VITE_ZHIPU_API_KEY ?? '';
+}
+
 function extractJson(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   const candidate = fenced?.[1]?.trim() ?? text.trim();
@@ -47,7 +53,7 @@ function extractJson(text: string): string {
 /** 可注入 ProductVideoAgent 的智谱 Chat Completions Provider。 */
 export class ZhipuProvider implements LLMProvider {
   constructor(
-    private readonly apiKey: string = import.meta.env.VITE_ZHIPU_API_KEY,
+    private readonly apiKey: string = defaultApiKey(),
     private readonly model = 'glm-4-flash',
   ) {}
 

@@ -8,8 +8,11 @@ interface ElectronBridge {
 /** 通过 Electron preload bridge 调用 Node 商品文件夹 Agent；普通浏览器不直接访问本地路径。 */
 export default function ProductProjectLoader() {
   const handleGenerate = async () => {
-    const folderPath = window.prompt('商品文件夹路径');
-    if (!folderPath) return;
+    const bridge = (window as Window & { hyperframesElectron?: ElectronBridge }).hyperframesElectron;
+    if (!bridge?.generateProductProject) {
+      window.alert('请使用桌面版 HyperFrames 执行本地商品生成');
+      return;
+    }
     const productName = window.prompt('商品名称', '便携榨汁杯');
     if (productName === null) return;
     const targetAudience = window.prompt('目标用户', '办公室女性、学生');
@@ -17,14 +20,9 @@ export default function ProductProjectLoader() {
     const rawPoints = window.prompt('卖点（每行一个）', '小巧便携\n充电使用\n快速榨汁\n清洗方便');
     if (rawPoints === null) return;
 
-    const bridge = (window as Window & { hyperframesElectron?: ElectronBridge }).hyperframesElectron;
-    if (!bridge?.generateProductProject) {
-      window.alert('本地商品文件夹扫描需要在 Electron/Node 模式运行，当前浏览器没有可用的本地文件桥接。');
-      return;
-    }
     try {
       const { snapshot } = await bridge.generateProductProject({
-        folderPath,
+        folderPath: '',
         productInfo: {
           productName,
           targetAudience,
