@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('hyperframesElectron', {
     return ipcRenderer.invoke('generate-product-project');
   },
   loadAsset: (assetPath) => ipcRenderer.invoke('load-asset', assetPath),
+  loadVideoAsset: (assetPath) => ipcRenderer.invoke('load-video-asset', assetPath),
 });

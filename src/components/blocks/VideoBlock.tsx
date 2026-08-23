@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { EvaluatedFrame, VideoBlockData } from '@/types';
 import { useEditorStore } from '@/store/editorStore';
 
@@ -21,10 +21,23 @@ export default function VideoBlock({ block, frame, width, height }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const { props } = block;
+  const [resolvedSrc, setResolvedSrc] = useState(props.src);
+  const isLocalPath = Boolean(props.src && (/^file:\/\//i.test(props.src) || /^[A-Za-z]:[\\/]/.test(props.src) || /^\\\\/.test(props.src)));
+
+  useEffect(() => {
+    let active = true;
+    const bridge = (window as Window & { hyperframesElectron?: { loadVideoAsset?: (path: string) => Promise<string> } }).hyperframesElectron;
+    setResolvedSrc(isLocalPath && bridge?.loadVideoAsset ? null : props.src);
+    if (!props.src || !isLocalPath || !bridge?.loadVideoAsset) return () => { active = false; };
+    void bridge.loadVideoAsset(props.src)
+      .then((dataUrl) => { if (active) setResolvedSrc(dataUrl); })
+      .catch((error) => console.error('video asset load failed', error));
+    return () => { active = false; };
+  }, [isLocalPath, props.src]);
 
   useEffect(() => {
     const v = ref.current;
-    if (!v || !props.src) return;
+    if (!v || !resolvedSrc) return;
 
     const media = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : null;
     let target = Math.max(0, frame.localTime);
@@ -40,14 +53,14 @@ export default function VideoBlock({ block, frame, width, height }: Props) {
       if (!v.paused) v.pause();
       if (Math.abs(v.currentTime - target) > 0.03) v.currentTime = target;
     }
-  }, [frame.localTime, frame.active, isPlaying, props.loop, props.playing, props.src]);
+  }, [frame.localTime, frame.active, isPlaying, props.loop, props.playing, resolvedSrc]);
 
   useEffect(() => {
     const v = ref.current;
     if (v) v.muted = props.muted;
   }, [props.muted]);
 
-  if (!props.src) {
+  if (!props.src || !resolvedSrc) {
     return (
       <div
         style={{ width, height }}
@@ -57,7 +70,7 @@ export default function VideoBlock({ block, frame, width, height }: Props) {
           <rect x="2" y="4" width="14" height="16" rx="2" />
           <path d="m22 7-6 5 6 5V7Z" />
         </svg>
-        <span className="text-[20px] text-white/45">在右侧上传 MP4</span>
+        <span className="text-[20px] text-white/45">{props.src ? '加载视频中…' : '在右侧上传 MP4'}</span>
       </div>
     );
   }
@@ -65,7 +78,7 @@ export default function VideoBlock({ block, frame, width, height }: Props) {
   return (
     <video
       ref={ref}
-      src={props.src}
+      src={resolvedSrc}
       muted={props.muted}
       playsInline
       preload="auto"

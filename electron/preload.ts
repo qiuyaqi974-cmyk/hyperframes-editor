@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('hyperframesElectron', {
     return ipcRenderer.invoke('generate-product-project');
   },
   loadAsset: (assetPath: string): Promise<string> => ipcRenderer.invoke('load-asset', assetPath),
+  loadVideoAsset: (assetPath: string): Promise<string> => ipcRenderer.invoke('load-video-asset', assetPath),
 });

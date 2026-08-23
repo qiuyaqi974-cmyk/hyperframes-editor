@@ -97,6 +97,20 @@ ipcMain.handle('load-asset', async (_event, assetPath: string) => {
   }
 });
 
+ipcMain.handle('load-video-asset', async (_event, assetPath: string) => {
+  try {
+    const filePath = assetPath.startsWith('file://') ? fileURLToPath(assetPath) : assetPath;
+    const extension = extname(filePath).toLowerCase();
+    if (extension !== '.mp4' && extension !== '.webm') throw new Error('仅支持 MP4 和 WebM 视频。');
+    const buffer = readFileSync(filePath);
+    const mime = extension === '.webm' ? 'video/webm' : 'video/mp4';
+    return `data:${mime};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error('main: load video asset failed', error);
+    throw error;
+  }
+});
+
 void app.whenReady().then(() => {
   loadLocalEnv();
   createWindow();
