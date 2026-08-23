@@ -1,17 +1,7 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { runProductProject } from './runtime.mjs';
-
-interface ProductProjectInput {
-  folderPath: string;
-  productInfo: {
-    productName: string;
-    targetAudience: string;
-    sellingPoints: string[];
-  };
-}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,20 +33,9 @@ function createWindow() {
   void window.loadURL('http://localhost:5178');
 }
 
-ipcMain.handle('generate-product-project', async (_event, input: ProductProjectInput) => {
-  console.log('main: generate-product-project');
-  try {
-    const selected = await dialog.showOpenDialog({
-      title: '选择商品素材文件夹',
-      properties: ['openDirectory'],
-    });
-    if (selected.canceled || !selected.filePaths[0]) throw new Error('未选择商品素材文件夹。');
-    const result = await runProductProject({ ...input, folderPath: selected.filePaths[0] });
-    return { snapshot: result.snapshot };
-  } catch (error) {
-    console.error('main: product project failed', error);
-    throw error;
-  }
+ipcMain.handle('generate-product-project', async () => {
+  console.log('ipc generate-product-project received');
+  return { ok: true as const };
 });
 
 void app.whenReady().then(() => {

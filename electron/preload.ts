@@ -1,10 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ProductProjectInput } from '../src/lib/agent/productProjectAgent';
-import type { ProjectSnapshot } from '../src/types';
+console.log('preload loaded');
 
 contextBridge.exposeInMainWorld('hyperframesElectron', {
-  generateProductProject: (input: ProductProjectInput): Promise<{ snapshot: ProjectSnapshot }> => {
+  generateProductProject: (): Promise<{ ok: true }> => {
     console.log('preload: generateProductProject');
-    return ipcRenderer.invoke('generate-product-project', input);
+    return ipcRenderer.invoke('generate-product-project');
   },
 });
