@@ -65,8 +65,10 @@ async function scanFolder(folderPath: string): Promise<string[]> {
 
 /** 扫描本地商品文件夹，供 Electron/Node 主进程导入 HyperFrames。 */
 export async function scanLocalAssets(folderPath: string): Promise<Asset[]> {
+  console.log('scan folder:', folderPath);
   const assets: Asset[] = [];
   for (const filePath of await scanFolder(folderPath)) {
+    console.log('found file:', filePath);
     const extension = extname(filePath).toLowerCase();
     if (!IMAGE_EXTENSIONS.has(extension) && !VIDEO_EXTENSIONS.has(extension)) continue;
     const data = await readFile(filePath);
@@ -83,6 +85,7 @@ export async function scanLocalAssets(folderPath: string): Promise<Asset[]> {
       size: data.byteLength,
     });
   }
+  console.log('asset count:', assets.length);
   return assets;
 }
 

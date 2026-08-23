@@ -30,6 +30,7 @@ export async function generateProductProject(
     duration: 30,
   };
   const plan = await generateProductVideoPlan(videoInput, provider);
+  console.log('assets before scene:', assets);
   const snapshot = scenePlanToSnapshot(plan, assets);
   importSnapshot?.(snapshot);
   return { assets, snapshot };
