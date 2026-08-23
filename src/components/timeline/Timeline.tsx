@@ -7,6 +7,9 @@ import { BLOCK_COLOR } from '@/lib/blockFactory';
 const TRACK_LABEL_W = 148;
 const ROW_H = 30;
 
+const timelineDuration = (block: Block) =>
+  block.type === 'voice' ? Math.max(block.duration, block.props.duration || 0) : block.duration;
+
 type DragMode = 'move' | 'trim-start' | 'trim-end';
 
 export default function Timeline() {
@@ -104,7 +107,7 @@ export default function Timeline() {
       mode,
       x: e.clientX,
       start: block.start,
-      duration: block.duration,
+      duration: timelineDuration(block),
     };
   };
 
@@ -265,7 +268,7 @@ export default function Timeline() {
 
             {ordered.map((b) => {
               const left = b.start * pxPerSec;
-              const width = Math.max(6, b.duration * pxPerSec);
+              const width = Math.max(6, timelineDuration(b) * pxPerSec);
               const color = BLOCK_COLOR[b.type];
               const animW =
                 b.animation.type === 'none'

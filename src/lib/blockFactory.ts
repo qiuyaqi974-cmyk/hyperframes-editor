@@ -424,6 +424,7 @@ export function createVoiceBlock(
       volume: 50,
       src: null,
       duration: 0,
+      generated: false,
       width,
       height,
       scale: 1,

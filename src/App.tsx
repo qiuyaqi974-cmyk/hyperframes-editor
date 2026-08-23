@@ -84,6 +84,36 @@ function useNarrationEngine() {
   }, []);
 }
 
+/** 让已生成的 VoiceBlock 跟随编辑器播放头，不让音频自行脱离时间轴播放。 */
+function useVoiceAudioEngine() {
+  useEffect(() => {
+    return useEditorStore.subscribe((state) => {
+      for (const block of state.blocks) {
+        if (block.type !== 'voice' || !block.props.src) continue;
+        const audio = document.querySelector<HTMLAudioElement>(
+          `audio[data-voice-block="${block.id}"]`,
+        );
+        if (!audio) continue;
+        const duration = Math.max(block.duration, block.props.duration || 0);
+        const active = state.currentTime >= block.start && state.currentTime <= block.start + duration;
+        const localTime = Math.max(0, state.currentTime - block.start);
+        if (Math.abs(audio.currentTime - localTime) > (state.isPlaying ? 0.3 : 0.04)) {
+          try {
+            audio.currentTime = localTime;
+          } catch {
+            // 元数据尚未就绪时，下一次播放头变化会继续同步。
+          }
+        }
+        if (state.isPlaying && active) {
+          if (audio.paused) void audio.play().catch(() => undefined);
+        } else if (!audio.paused) {
+          audio.pause();
+        }
+      }
+    });
+  }, []);
+}
+
 function useAutosave() {
   const [status, setStatus] = useState('正在恢复…');
 
@@ -156,6 +186,7 @@ export default function App() {
   usePlaybackEngine();
   useShortcuts();
   useNarrationEngine();
+  useVoiceAudioEngine();
   const autosaveStatus = useAutosave();
 
   const blocks = useEditorStore((s) => s.blocks);

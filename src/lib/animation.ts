@@ -109,7 +109,10 @@ export function evaluateBlock(block: Block, time: number, isolate = false): Eval
 
 /** 时间轴总长度：最后一个 block 的出点，最少 6 秒 */
 export function compositionDuration(blocks: Block[]): number {
-  const end = blocks.reduce((max, b) => Math.max(max, b.start + b.duration), 0);
+  const end = blocks.reduce((max, b) => {
+    const duration = b.type === 'voice' ? Math.max(b.duration, b.props.duration || 0) : b.duration;
+    return Math.max(max, b.start + duration);
+  }, 0);
   return Math.max(6, Math.ceil(end * 2) / 2);
 }
 

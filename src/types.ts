@@ -244,6 +244,7 @@ export interface VoiceProps {
   volume: number;
   src: string | null;
   duration: number;
+  generated: boolean;
   /** 编辑器展示用的占位卡片尺寸与通用视觉参数。 */
   width: number;
   height: number;

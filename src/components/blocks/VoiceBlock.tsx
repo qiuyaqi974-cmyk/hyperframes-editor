@@ -30,9 +30,12 @@ export default function VoiceBlock({ block }: Props) {
         speed: props.speed,
         volume: props.volume,
       });
-      updateProps(block.id, { src: result.src });
+      updateProps(block.id, {
+        src: result.src,
+        generated: true,
+        ...(result.duration !== undefined ? { duration: result.duration } : {}),
+      });
       if (result.duration !== undefined) {
-        updateProps(block.id, { duration: result.duration });
         updateBlock(block.id, { duration: result.duration });
       }
     } catch (cause) {
@@ -84,7 +87,7 @@ export default function VoiceBlock({ block }: Props) {
       </div>
 
       {hasAudio ? (
-        <audio className="mt-2 h-7 w-full" controls preload="metadata" src={props.src ?? undefined} onLoadedMetadata={handleAudioMetadata} />
+        <audio data-voice-block={block.id} className="mt-2 h-7 w-full" controls preload="metadata" src={props.src ?? undefined} onLoadedMetadata={handleAudioMetadata} />
       ) : (
         <div className="mt-3 flex items-center gap-1.5" aria-label="音频占位波形">
           {Array.from({ length: 28 }, (_, index) => (

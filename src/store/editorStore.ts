@@ -429,7 +429,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       projectName: snap.projectName || '未命名视频',
       canvas: snap.canvas ?? get().canvas,
-      blocks: Array.isArray(snap.blocks) ? snap.blocks : [],
+      blocks: Array.isArray(snap.blocks)
+        ? snap.blocks.map((block) =>
+            block.type === 'voice'
+              ? ({
+                  ...block,
+                  props: {
+                    ...block.props,
+                    generated: block.props.generated ?? Boolean(block.props.src),
+                  },
+                } as Block)
+              : block,
+          )
+        : [],
       assets: Array.isArray(snap.assets) ? snap.assets : [],
       narration: snap.narration ?? null,
       scenes: Array.isArray(snap.scenes) ? snap.scenes : [],
