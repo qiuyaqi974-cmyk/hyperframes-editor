@@ -15,6 +15,8 @@ export type SceneBlockType = 'text' | 'voice' | 'subtitle' | 'card' | 'image';
 export interface SceneBlockPlan {
   type: SceneBlockType;
   content: string;
+  /** 用于后续生成或检索视觉素材的描述；旧工程可以省略。 */
+  visualPrompt?: string;
   layoutPreset?: LayoutPreset;
   duration: number;
 }

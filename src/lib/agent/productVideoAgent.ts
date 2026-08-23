@@ -71,6 +71,7 @@ function buildPrompt(input: ProductVideoInput): string {
           { type: 'voice', content: '旁白内容', layoutPreset: 'bottom-subtitle', duration: 3 },
           { type: 'subtitle', content: '字幕内容', layoutPreset: 'bottom-subtitle', duration: 3 },
           { type: 'card', content: '卖点信息', layoutPreset: 'feature-card', duration: 3 },
+          { type: 'image', content: '产品展示', visualPrompt: '办公室女生使用便携榨汁杯制作果汁', layoutPreset: 'center-product', duration: 3 },
         ],
       }],
     }, null, 2),
@@ -83,7 +84,8 @@ function buildPrompt(input: ProductVideoInput): string {
     '5. blocks 的 type 只能使用：text、voice、subtitle、card、image。',
     '6. layoutPreset 只能使用：top-title、center-product、bottom-subtitle、feature-card、cta。',
     '7. 每个 block 必须包含 type、content、duration、layoutPreset。',
-    '8. 返回前自行检查：scenes 存在；每个 scene 的 blocks 是数组；每个 type 都合法；最终内容是可解析的 JSON。',
+    '8. image（以及未来扩展的 video）类型必须额外包含 visualPrompt，用一句话描述要生成或检索的画面。示例：{"type":"image","content":"产品展示","visualPrompt":"办公室女生使用便携榨汁杯制作果汁"}。',
+    '9. 返回前自行检查：scenes 存在；每个 scene 的 blocks 是数组；每个 type 都合法；最终内容是可解析的 JSON。',
     `INPUT_JSON:\n${JSON.stringify(input)}`,
   ].join('\n');
 }
