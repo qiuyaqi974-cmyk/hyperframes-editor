@@ -13,6 +13,7 @@ import { THEME_LIST } from '@/lib/themes';
 import type { ThemeId } from '@/types';
 import { generateProjectSnapshot } from '@/lib/agent/projectGenerator';
 import { planContent } from '@/lib/agent/contentPlanner';
+import ScenePlanLoader from '@/components/agent/ScenePlanLoader';
 
 /**
  * 播放引擎。
@@ -371,6 +372,7 @@ export default function App() {
           >
             AI规划内容
           </button>
+          <ScenePlanLoader />
           <button
             onClick={handleMp4Export}
             className="rounded-md bg-emerald-500 px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
