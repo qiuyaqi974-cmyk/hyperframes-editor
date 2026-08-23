@@ -4,7 +4,7 @@ import { useEditorStore } from '@/store/editorStore';
 
 /** 商品视频 Agent 的本地测试入口；未来只需替换 Agent 函数实现即可接 GPT。 */
 export default function ProductVideoLoader() {
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     const productName = window.prompt('商品名称', '便携榨汁杯');
     if (productName === null) return;
     const targetAudience = window.prompt('目标用户', '办公室女性、学生');
@@ -17,7 +17,7 @@ export default function ProductVideoLoader() {
         .split(/[\n,，、]/)
         .map((point) => point.trim())
         .filter(Boolean);
-      const plan = generateProductVideoPlan({
+      const plan = await generateProductVideoPlan({
         productName,
         targetAudience,
         sellingPoints,
