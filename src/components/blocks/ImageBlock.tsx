@@ -23,7 +23,10 @@ export default function ImageBlock({ block, frame }: Props) {
           <circle cx="8.5" cy="8.5" r="1.5" />
           <path d="m21 15-5-5L5 21" />
         </svg>
-        <span className="text-[20px] text-white/45">在右侧上传图片</span>
+        <span className="text-[20px] text-white/45">图片占位</span>
+        <span className="max-w-[80%] text-center text-[13px] leading-relaxed text-white/35">
+          {props.visualPrompt || '在右侧上传图片'}
+        </span>
       </div>
     );
   }

@@ -60,6 +60,8 @@ export interface ImageProps {
   /** 素材 id，指向 store.assets */
   assetId: string | null;
   src: string | null;
+  /** 后续生成或检索视觉素材的描述，可由 Agent 写入 */
+  visualPrompt?: string;
   /** 原始宽度（合成坐标） */
   width: number;
   height: number;

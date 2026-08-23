@@ -62,6 +62,7 @@ function makeBlock(
   } else {
     block = createImageBlock(null, canvas, layer, start);
     block.name = plan.content || '图片占位';
+    if (plan.visualPrompt) block.props.visualPrompt = plan.visualPrompt;
   }
 
   block.duration = duration;

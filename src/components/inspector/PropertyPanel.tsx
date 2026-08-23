@@ -238,6 +238,13 @@ export default function PropertyPanel() {
             >
               {uploading ? '选择中…' : block.props.src ? '替换图片' : '上传图片'}
             </button>
+            <Row label="视觉提示词">
+              <TextArea
+                value={block.props.visualPrompt ?? ''}
+                onChange={(visualPrompt) => updateProps(block.id, { visualPrompt })}
+                rows={3}
+              />
+            </Row>
             <Row label="尺寸">
               <div className="flex gap-2">
                 <NumberField
