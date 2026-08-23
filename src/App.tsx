@@ -12,6 +12,7 @@ import { loadAutosave, saveAutosave } from '@/lib/persistence';
 import { THEME_LIST } from '@/lib/themes';
 import type { ThemeId } from '@/types';
 import { generateProjectSnapshot } from '@/lib/agent/projectGenerator';
+import { planContent } from '@/lib/agent/contentPlanner';
 
 /**
  * 播放引擎。
@@ -278,6 +279,20 @@ export default function App() {
     }
   };
 
+  const handleContentPlan = () => {
+    const topic = window.prompt('输入主题', '如何把一个想法变成可执行的视频工程');
+    if (topic === null) return;
+    try {
+      const plan = planContent(topic);
+      const sceneText = plan.scenes
+        .map((scene, index) => `${index + 1}. ${scene.text}\n   画面：${scene.visual} · ${scene.duration}s`)
+        .join('\n\n');
+      window.alert(`标题：${plan.title}\n\n脚本：\n${plan.script}\n\n场景规划：\n${sceneText}`);
+    } catch (error) {
+      alert(`内容规划失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -349,6 +364,12 @@ export default function App() {
             className="rounded-md border border-cyan-300/40 bg-cyan-300/10 px-2.5 py-[5px] text-[11px] font-medium text-cyan-100 hover:bg-cyan-300/20"
           >
             AI生成工程
+          </button>
+          <button
+            onClick={handleContentPlan}
+            className="rounded-md border border-violet-300/40 bg-violet-300/10 px-2.5 py-[5px] text-[11px] font-medium text-violet-100 hover:bg-violet-300/20"
+          >
+            AI规划内容
           </button>
           <button
             onClick={handleMp4Export}
