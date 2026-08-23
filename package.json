@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "electron": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5178 && electron --import tsx/esm electron/main.ts\"",
+    "electron:bundle": "esbuild electron/runtime.ts --bundle --platform=node --format=esm --outfile=electron/runtime.mjs",
+    "electron": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5178 && npm run electron:bundle && electron --require tsx/cjs electron/main.ts\"",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
@@ -27,6 +28,7 @@
     "autoprefixer": "^10.4.20",
     "concurrently": "^10.0.5",
     "electron": "^43.4.1",
+    "esbuild": "^0.28.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "tsx": "^4.23.12",

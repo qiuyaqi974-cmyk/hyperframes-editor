@@ -2,9 +2,16 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { generateProductProject } from '../src/lib/agent/productProjectAgent';
-import { ZhipuProvider } from '../src/lib/agent/providers/zhipuProvider';
-import type { ProductProjectInput } from '../src/lib/agent/productProjectAgent';
+import { runProductProject } from './runtime.mjs';
+
+interface ProductProjectInput {
+  folderPath: string;
+  productInfo: {
+    productName: string;
+    targetAudience: string;
+    sellingPoints: string[];
+  };
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -42,9 +49,8 @@ ipcMain.handle('product-project:generate', async (_event, input: ProductProjectI
     properties: ['openDirectory'],
   });
   if (selected.canceled || !selected.filePaths[0]) throw new Error('未选择商品素材文件夹。');
-  const result = await generateProductProject(
+  const result = await runProductProject(
     { ...input, folderPath: selected.filePaths[0] },
-    new ZhipuProvider(),
   );
   return { snapshot: result.snapshot };
 });

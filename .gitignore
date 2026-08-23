@@ -4,6 +4,7 @@ dist
 *.log
 .DS_Store
 .vite
+electron/runtime.mjs
 .env
 .env.*
 !.env.example
