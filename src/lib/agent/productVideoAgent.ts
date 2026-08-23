@@ -31,9 +31,9 @@ function allocateDurations(requested: number): [number, number, number, number] 
 }
 
 function buildMockScenePlan(input: ProductVideoInput): ScenePlan {
-  const productName = input.productName.trim();
-  const targetAudience = input.targetAudience.trim() || '想要提升生活效率的人';
-  const sellingPoints = (input.sellingPoints ?? []).map((point) => point.trim()).filter(Boolean);
+  const productName = String(input.productName ?? '').trim();
+  const targetAudience = String(input.targetAudience ?? '').trim() || '想要提升生活效率的人';
+  const sellingPoints = (input.sellingPoints ?? []).map((point) => String(point ?? '').trim()).filter(Boolean);
   if (!productName) throw new Error('商品名称不能为空。');
   const points = sellingPoints.length > 0 ? sellingPoints : ['核心卖点待补充'];
   const [hookDuration, productDuration, benefitDuration, ctaDuration] = allocateDurations(input.duration);

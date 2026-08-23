@@ -1,7 +1,17 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { runProductProject } from './runtime.mjs';
+
+interface ProductProjectInput {
+  folderPath?: string;
+  productInfo?: {
+    productName?: string;
+    targetAudience?: string;
+    sellingPoints?: string[];
+  };
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -33,9 +43,28 @@ function createWindow() {
   void window.loadURL('http://localhost:5178');
 }
 
-ipcMain.handle('generate-product-project', async () => {
+ipcMain.handle('generate-product-project', async (_event, input: ProductProjectInput = {}) => {
   console.log('ipc generate-product-project received');
-  return { ok: true as const };
+  try {
+    const selected = await dialog.showOpenDialog({
+      title: '选择商品素材文件夹',
+      properties: ['openDirectory'],
+    });
+    if (selected.canceled || !selected.filePaths[0]) throw new Error('未选择商品素材文件夹。');
+    const productInfo = input.productInfo ?? {};
+    const result = await runProductProject({
+      folderPath: selected.filePaths[0],
+      productInfo: {
+        productName: String(productInfo.productName ?? '未知商品').trim() || '未知商品',
+        targetAudience: String(productInfo.targetAudience ?? '普通消费者').trim() || '普通消费者',
+        sellingPoints: (productInfo.sellingPoints ?? []).map((point) => String(point ?? '').trim()).filter(Boolean),
+      },
+    });
+    return { snapshot: result.snapshot };
+  } catch (error) {
+    console.error('main: product project failed', error);
+    throw error;
+  }
 });
 
 void app.whenReady().then(() => {
