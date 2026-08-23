@@ -11,6 +11,7 @@ import { generateHyperFramesHtml } from '@/lib/exportHtml';
 import { loadAutosave, saveAutosave } from '@/lib/persistence';
 import { THEME_LIST } from '@/lib/themes';
 import type { ThemeId } from '@/types';
+import { generateProjectSnapshot } from '@/lib/agent/projectGenerator';
 
 /**
  * 播放引擎。
@@ -264,6 +265,19 @@ export default function App() {
     alert('渲染文件已下载。把它拖到项目文件夹里的“HTML转MP4.bat”上，就会自动生成 MP4。');
   };
 
+  const handleAgentGenerate = () => {
+    const topic = window.prompt('主题', '一个值得讲清楚的主题');
+    if (topic === null) return;
+    const script = window.prompt('脚本（可直接粘贴完整口播稿）', `${topic}\n\n请在这里输入口播稿。`);
+    if (script === null) return;
+    try {
+      const snapshot = generateProjectSnapshot({ topic, script });
+      useEditorStore.getState().importSnapshot(snapshot);
+    } catch (error) {
+      alert(`AI 生成工程失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -329,6 +343,12 @@ export default function App() {
             className="rounded-md bg-accent px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
           >
             导出 HTML
+          </button>
+          <button
+            onClick={handleAgentGenerate}
+            className="rounded-md border border-cyan-300/40 bg-cyan-300/10 px-2.5 py-[5px] text-[11px] font-medium text-cyan-100 hover:bg-cyan-300/20"
+          >
+            AI生成工程
           </button>
           <button
             onClick={handleMp4Export}
