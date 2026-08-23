@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import type { Block, EvaluatedFrame } from '@/types';
+import { useEditorStore } from '@/store/editorStore';
+import { XunfeiTTS } from '@/lib/tts/xfyun';
 
 interface Props {
   block: Extract<Block, { type: 'voice' }>;
@@ -12,6 +15,31 @@ interface Props {
 export default function VoiceBlock({ block }: Props) {
   const { props } = block;
   const hasAudio = Boolean(props.src);
+  const updateProps = useEditorStore((state) => state.updateProps);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleGenerate = async () => {
+    if (!props.text.trim() || generating) return;
+    setGenerating(true);
+    setError(null);
+    try {
+      const result = await new XunfeiTTS().synthesize(props.text, {
+        voiceName: props.voiceName,
+        speed: props.speed,
+        volume: props.volume,
+      });
+      updateProps(block.id, { src: result.src });
+      if (result.duration !== undefined) {
+        updateProps(block.id, { duration: result.duration });
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      setError(message);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div
@@ -25,6 +53,15 @@ export default function VoiceBlock({ block }: Props) {
           {hasAudio ? '音频已生成' : '音频占位'}
         </span>
       </div>
+
+      <button
+        type="button"
+        onClick={handleGenerate}
+        disabled={generating || !props.text.trim()}
+        className="mt-2 rounded-md border border-cyan-300/30 bg-cyan-300/10 px-3 py-1.5 text-[11px] font-medium text-cyan-100 transition-colors hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {generating ? '生成中…' : '生成配音'}
+      </button>
 
       <div className="mt-2 min-h-0 flex-1">
         <p className="line-clamp-2 whitespace-pre-wrap text-[12px] leading-relaxed text-cyan-50/80">
@@ -49,6 +86,11 @@ export default function VoiceBlock({ block }: Props) {
             />
           ))}
         </div>
+      )}
+      {error && (
+        <p role="alert" className="mt-2 text-[10px] leading-relaxed text-amber-200/80">
+          {error}
+        </p>
       )}
     </div>
   );
