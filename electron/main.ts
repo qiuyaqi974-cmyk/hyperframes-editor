@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { runProductProject } from './runtime.mjs';
 
@@ -74,6 +74,25 @@ ipcMain.handle('generate-product-project', async (_event, input: ProductProjectI
   } catch (error) {
     console.error(error);
     console.error('main: product project failed', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('load-asset', async (_event, assetPath: string) => {
+  try {
+    const filePath = assetPath.startsWith('file://') ? fileURLToPath(assetPath) : assetPath;
+    const buffer = readFileSync(filePath);
+    const mimeByExtension: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif',
+    };
+    const mime = mimeByExtension[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
+    return `data:${mime};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error('main: load asset failed', error);
     throw error;
   }
 });
