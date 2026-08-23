@@ -61,7 +61,7 @@ export class ZhipuProvider implements LLMProvider {
     if (!this.apiKey) throw new Error('未配置 VITE_ZHIPU_API_KEY，无法调用智谱。');
 
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch(ZHIPU_CHAT_URL, {
         method: 'POST',
@@ -107,7 +107,7 @@ export class ZhipuProvider implements LLMProvider {
       }
       throw error;
     } finally {
-      window.clearTimeout(timeout);
+      globalThis.clearTimeout(timeout);
     }
   }
 }
