@@ -16,6 +16,7 @@ export default function VoiceBlock({ block }: Props) {
   const { props } = block;
   const hasAudio = Boolean(props.src);
   const updateProps = useEditorStore((state) => state.updateProps);
+  const updateBlock = useEditorStore((state) => state.updateBlock);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +33,7 @@ export default function VoiceBlock({ block }: Props) {
       updateProps(block.id, { src: result.src });
       if (result.duration !== undefined) {
         updateProps(block.id, { duration: result.duration });
+        updateBlock(block.id, { duration: result.duration });
       }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
