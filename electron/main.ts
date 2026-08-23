@@ -44,6 +44,7 @@ function createWindow() {
 }
 
 ipcMain.handle('generate-product-project', async (_event, input: ProductProjectInput = {}) => {
+  console.log('5 ipc received');
   console.log('ipc generate-product-project received');
   try {
     const selected = await dialog.showOpenDialog({
@@ -51,6 +52,8 @@ ipcMain.handle('generate-product-project', async (_event, input: ProductProjectI
       properties: ['openDirectory'],
     });
     if (selected.canceled || !selected.filePaths[0]) throw new Error('未选择商品素材文件夹。');
+    console.log('6 folder selected', selected.filePaths[0]);
+    console.log('7 start productProjectAgent');
     const productInfo = input.productInfo ?? {};
     const result = await runProductProject({
       folderPath: selected.filePaths[0],
@@ -62,6 +65,7 @@ ipcMain.handle('generate-product-project', async (_event, input: ProductProjectI
     });
     return { snapshot: result.snapshot };
   } catch (error) {
+    console.error(error);
     console.error('main: product project failed', error);
     throw error;
   }

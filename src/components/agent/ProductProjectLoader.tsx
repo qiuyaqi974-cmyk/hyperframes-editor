@@ -14,8 +14,10 @@ interface ElectronBridge {
 /** 通过 Electron preload bridge 调用 Node 商品文件夹 Agent；普通浏览器不直接访问本地路径。 */
 export default function ProductProjectLoader() {
   const handleGenerate = async () => {
+    console.log('1 click');
     console.log('click generate product project');
     const bridge = (window as Window & { hyperframesElectron?: ElectronBridge }).hyperframesElectron;
+    console.log('2 bridge', bridge);
     console.log('electron bridge', bridge);
     if (!bridge) {
       alert('electron bridge missing');
@@ -26,6 +28,7 @@ export default function ProductProjectLoader() {
     const rawPoints = window.prompt('卖点（每行一个）', '小巧便携\n充电使用\n快速榨汁\n清洗方便') ?? '';
 
     try {
+      console.log('3 calling ipc');
       const { snapshot } = await bridge.generateProductProject({
         productInfo: {
           productName: productName || '未知商品',
@@ -35,6 +38,7 @@ export default function ProductProjectLoader() {
       });
       window.dispatchEvent(new CustomEvent('hyperframes:import-snapshot', { detail: snapshot }));
     } catch (error) {
+      console.error(error);
       console.error('generate product project failed', error);
       window.alert(`商品项目生成失败：${error instanceof Error ? error.message : String(error)}`);
     }
