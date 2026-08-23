@@ -1,4 +1,5 @@
 import { generateProductVideoPlan } from '@/lib/agent/productVideoAgent';
+import { ZhipuProvider } from '@/lib/agent/providers/zhipuProvider';
 import { scenePlanToSnapshot } from '@/lib/agent/scenePlan';
 import { useEditorStore } from '@/store/editorStore';
 
@@ -13,16 +14,20 @@ export default function ProductVideoLoader() {
     if (rawPoints === null) return;
 
     try {
+      const provider = new ZhipuProvider();
       const sellingPoints = rawPoints
         .split(/[\n,，、]/)
         .map((point) => point.trim())
         .filter(Boolean);
-      const plan = await generateProductVideoPlan({
-        productName,
-        targetAudience,
-        sellingPoints,
-        duration: 30,
-      });
+      const plan = await generateProductVideoPlan(
+        {
+          productName,
+          targetAudience,
+          sellingPoints,
+          duration: 30,
+        },
+        provider,
+      );
       const snapshot = scenePlanToSnapshot(plan);
       useEditorStore.getState().importSnapshot(snapshot);
     } catch (error) {
