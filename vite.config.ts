@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
+import { xfyunTTSProxy } from './server/xfyun-tts-proxy';
 
 export default defineConfig({
-  plugins: [react()],
   resolve: {
     alias: {
       // package.json 是 type: module，这里不能用 __dirname
@@ -15,4 +15,13 @@ export default defineConfig({
     host: true,
     open: false,
   },
+  plugins: [
+    react(),
+    {
+      name: 'local-xfyun-tts-proxy',
+      configureServer(server) {
+        server.middlewares.use('/api/tts/xunfei', xfyunTTSProxy);
+      },
+    },
+  ],
 });

@@ -11,12 +11,13 @@
     "validate:artifact": "test -f dist/index.html"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "framer-motion": "^11.11.17",
+    "playwright-core": "^1.55.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zustand": "^5.0.1",
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "playwright-core": "^1.55.0"
+    "ws": "^8.21.3",
+    "zustand": "^5.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

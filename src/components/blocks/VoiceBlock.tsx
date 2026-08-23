@@ -43,6 +43,13 @@ export default function VoiceBlock({ block }: Props) {
     }
   };
 
+  const handleAudioMetadata = (event: React.SyntheticEvent<HTMLAudioElement>) => {
+    const duration = event.currentTarget.duration;
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    updateProps(block.id, { duration });
+    updateBlock(block.id, { duration });
+  };
+
   return (
     <div
       className="flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border border-cyan-300/25 bg-slate-950/90 p-4 text-cyan-50 shadow-lg shadow-cyan-950/20"
@@ -77,7 +84,7 @@ export default function VoiceBlock({ block }: Props) {
       </div>
 
       {hasAudio ? (
-        <audio className="mt-2 h-7 w-full" controls preload="metadata" src={props.src ?? undefined} />
+        <audio className="mt-2 h-7 w-full" controls preload="metadata" src={props.src ?? undefined} onLoadedMetadata={handleAudioMetadata} />
       ) : (
         <div className="mt-3 flex items-center gap-1.5" aria-label="音频占位波形">
           {Array.from({ length: 28 }, (_, index) => (
