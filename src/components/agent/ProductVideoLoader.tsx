@@ -2,30 +2,39 @@ import { generateProductVideoPlan } from '@/lib/agent/productVideoAgent';
 import { ZhipuProvider } from '@/lib/agent/providers/zhipuProvider';
 import { scenePlanToSnapshot } from '@/lib/agent/scenePlan';
 import { useEditorStore } from '@/store/editorStore';
+import type { ProjectSnapshot } from '@/types';
+
+interface ElectronBridge {
+  generateProductProject: (input: {
+    productInfo: {
+      productName: string;
+      targetAudience: string;
+      sellingPoints: string[];
+    };
+  }) => Promise<{ snapshot: ProjectSnapshot }>;
+}
 
 /** 商品视频 Agent 的本地测试入口；未来只需替换 Agent 函数实现即可接 GPT。 */
 export default function ProductVideoLoader() {
   const handleGenerate = async () => {
-    const productName = window.prompt('商品名称', '便携榨汁杯');
-    if (productName === null) return;
-    const targetAudience = window.prompt('目标用户', '办公室女性、学生');
-    if (targetAudience === null) return;
-    const rawPoints = window.prompt('卖点（每行一个）', '小巧便携\n充电使用\n快速榨汁\n清洗方便');
-    if (rawPoints === null) return;
-
     try {
+      const productInfo = {
+        productName: '便携榨汁杯',
+        targetAudience: '办公室女性、学生',
+        sellingPoints: ['小巧便携', '充电使用', '快速榨汁', '清洗方便'],
+      };
+      const bridge = (window as Window & { hyperframesElectron?: ElectronBridge }).hyperframesElectron;
+      if (bridge?.generateProductProject) {
+        const { snapshot } = await bridge.generateProductProject({ productInfo });
+        useEditorStore.getState().importSnapshot(snapshot);
+        return;
+      }
       const provider = new ZhipuProvider();
       console.log('Using ZhipuProvider');
-      const sellingPoints = rawPoints
-        .split(/[\n,，、]/)
-        .map((point) => point.trim())
-        .filter(Boolean);
       console.log('Calling LLM provider');
       const plan = await generateProductVideoPlan(
         {
-          productName,
-          targetAudience,
-          sellingPoints,
+          ...productInfo,
           duration: 30,
         },
         provider,

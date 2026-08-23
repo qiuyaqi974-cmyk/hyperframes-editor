@@ -23,17 +23,13 @@ export default function ProductProjectLoader() {
       alert('electron bridge missing');
       return;
     }
-    const productName = window.prompt('商品名称', '便携榨汁杯') ?? '未知商品';
-    const targetAudience = window.prompt('目标用户', '办公室女性、学生') ?? '普通消费者';
-    const rawPoints = window.prompt('卖点（每行一个）', '小巧便携\n充电使用\n快速榨汁\n清洗方便') ?? '';
-
     try {
       console.log('3 calling ipc');
       const { snapshot } = await bridge.generateProductProject({
         productInfo: {
-          productName: productName || '未知商品',
-          targetAudience: targetAudience || '普通消费者',
-          sellingPoints: rawPoints.split(/[\n,，、]/).map((point) => point.trim()).filter(Boolean),
+          productName: '未知商品',
+          targetAudience: '普通消费者',
+          sellingPoints: [],
         },
       });
       window.dispatchEvent(new CustomEvent('hyperframes:import-snapshot', { detail: snapshot }));
