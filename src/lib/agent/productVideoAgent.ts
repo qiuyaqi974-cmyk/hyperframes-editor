@@ -62,6 +62,53 @@ function buildPrompt(input: ProductVideoInput): string {
   ].join('\n');
 }
 
+const sceneBlockTypes = ['text', 'voice', 'subtitle', 'card', 'image'] as const;
+const layoutPresets = ['top-title', 'center-product', 'bottom-subtitle', 'feature-card', 'cta'] as const;
+
+function normalizeScenePlan(value: unknown, input: ProductVideoInput): unknown {
+  if (!value || typeof value !== 'object') return value;
+  const source = value as Record<string, unknown>;
+  if (!Array.isArray(source.scenes)) return value;
+  const defaultDuration = Math.max(1, Math.round(input.duration / Math.max(1, source.scenes.length)));
+  const scenes = source.scenes.map((rawScene, sceneIndex) => {
+    const scene = rawScene && typeof rawScene === 'object' ? rawScene as Record<string, unknown> : {};
+    const duration = typeof scene.duration === 'number' && Number.isFinite(scene.duration) && scene.duration > 0
+      ? scene.duration
+      : defaultDuration;
+    const rawBlocks = Array.isArray(scene.blocks) ? scene.blocks : [];
+    const blocks = rawBlocks.map((rawBlock) => {
+      const block = rawBlock && typeof rawBlock === 'object' ? rawBlock as Record<string, unknown> : {};
+      const type = sceneBlockTypes.includes(block.type as typeof sceneBlockTypes[number])
+        ? block.type as typeof sceneBlockTypes[number]
+        : 'text';
+      const content = typeof block.content === 'string'
+        ? block.content
+        : typeof block.text === 'string' ? block.text : '';
+      const layoutPreset = layoutPresets.includes(block.layoutPreset as typeof layoutPresets[number])
+        ? block.layoutPreset
+        : undefined;
+      return {
+        ...block,
+        type,
+        content,
+        duration: typeof block.duration === 'number' && Number.isFinite(block.duration) && block.duration > 0
+          ? block.duration
+          : duration,
+        ...(layoutPreset ? { layoutPreset } : {}),
+      };
+    });
+    if (blocks.length === 0) {
+      blocks.push({ type: 'text', content: typeof scene.text === 'string' ? scene.text : '', duration });
+    }
+    return { ...scene, id: typeof scene.id === 'string' && scene.id ? scene.id : `scene-${sceneIndex + 1}`, duration, blocks };
+  });
+  return {
+    ...source,
+    projectName: typeof source.projectName === 'string' && source.projectName ? source.projectName : `${input.productName} · 商品视频`,
+    scenes,
+  };
+}
+
 function validateScenePlan(value: unknown): asserts value is ScenePlan {
   if (!value || typeof value !== 'object' || !Array.isArray((value as ScenePlan).scenes)) throw new Error('商品视频 Agent 返回的 JSON 不是有效 ScenePlan。');
   const plan = value as ScenePlan;
@@ -79,12 +126,14 @@ export async function generateProductVideoPlan(input: ProductVideoInput, provide
   const fallback = buildMockScenePlan(input);
   const llm = provider ?? new MockProvider(JSON.stringify(fallback));
   const raw = await llm.generate(buildPrompt(input));
+  console.log('LLM raw response:', raw);
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
     throw new Error('商品视频 Agent 返回的内容不是有效 JSON，请检查模型输出。');
   }
+  parsed = normalizeScenePlan(parsed, input);
   validateScenePlan(parsed);
   return parsed;
 }
