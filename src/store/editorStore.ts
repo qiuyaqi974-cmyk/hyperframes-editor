@@ -62,6 +62,7 @@ interface EditorState {
   /* ---- 素材 ---- */
   addAsset: (asset: Asset) => void;
   removeAsset: (id: string) => void;
+  bindAssetToSelectedImage: (asset: Asset) => boolean;
   setNarration: (track: NarrationTrack | null) => void;
   importSrt: (text: string) => number;
   autoMatchAssets: () => { matched: number; unmatchedScenes: number; unusedAssets: number };
@@ -148,6 +149,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   addAsset: (asset) => set((s) => ({ assets: [...s.assets, asset] })),
 
   removeAsset: (id) => set((s) => ({ assets: s.assets.filter((a) => a.id !== id) })),
+
+  bindAssetToSelectedImage: (asset) => {
+    const { selectedId, blocks } = get();
+    const selected = blocks.find((block) => block.id === selectedId);
+    if (!selected || selected.type !== 'image' || asset.kind !== 'image') return false;
+    set((s) => ({
+      blocks: s.blocks.map((block) => block.id === selected.id
+        ? ({
+          ...block,
+          name: asset.name.replace(/\.[^.]+$/, ''),
+          props: { ...block.props, assetId: asset.id, src: asset.url },
+        } as Block)
+        : block),
+    }));
+    return true;
+  },
 
   setNarration: (narration) => set({ narration }),
 

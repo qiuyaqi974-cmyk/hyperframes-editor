@@ -144,6 +144,8 @@ export default function BlockLibrary() {
   const addAsset = useEditorStore((s) => s.addAsset);
   const addBlock = useEditorStore((s) => s.addBlock);
   const addBlockFromAsset = useEditorStore((s) => s.addBlockFromAsset);
+  const bindAssetToSelectedImage = useEditorStore((s) => s.bindAssetToSelectedImage);
+  const blocks = useEditorStore((s) => s.blocks);
   const autoMatchAssets = useEditorStore((s) => s.autoMatchAssets);
 
   const handleAdd = async (item: LibItem) => {
@@ -243,6 +245,9 @@ export default function BlockLibrary() {
             自动匹配到字幕
           </button>
         </div>
+        <p className="mb-2 px-1 text-[10px] leading-relaxed text-ink-faint">
+          选中 ImageBlock 后点击图片，可“匹配到镜头”；未选中时会新增图片积木。
+        </p>
         {assets.length === 0 ? (
           <p className="px-1 text-[11px] leading-relaxed text-ink-faint">
             上传过的素材会留在这里，点一下即可复用。
@@ -252,8 +257,11 @@ export default function BlockLibrary() {
             {assets.map((a) => (
               <button
                 key={a.id}
-                onClick={() => addBlockFromAsset(a)}
-                title={`${a.name} · ${formatBytes(a.size)}`}
+                onClick={() => {
+                  const bound = bindAssetToSelectedImage(a);
+                  if (!bound) addBlockFromAsset(a);
+                }}
+                title={`${a.name} · ${formatBytes(a.size)} · ${blocks.some((b) => b.type === 'image' && b.props.assetId === a.id) ? 'matched' : 'unmatched'}`}
                 className="group relative aspect-square overflow-hidden rounded-md border border-stroke bg-black/40 hover:border-accent"
               >
                 {a.kind === 'image' ? (
@@ -264,6 +272,9 @@ export default function BlockLibrary() {
                 <span className="absolute bottom-0 left-0 right-0 truncate bg-black/70 px-1 py-[1px] text-[9px] text-ink-dim">
                   {a.kind === 'video' ? '▶ ' : ''}
                   {a.name}
+                </span>
+                <span className="absolute right-1 top-1 rounded bg-black/70 px-1 text-[8px] text-white/70">
+                  {blocks.some((b) => b.type === 'image' && b.props.assetId === a.id) ? 'matched' : 'unmatched'}
                 </span>
               </button>
             ))}

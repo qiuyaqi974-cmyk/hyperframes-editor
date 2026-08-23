@@ -96,6 +96,7 @@ export default function PropertyPanel() {
   const duplicateBlock = useEditorStore((s) => s.duplicateBlock);
   const reorderLayer = useEditorStore((s) => s.reorderLayer);
   const addAsset = useEditorStore((s) => s.addAsset);
+  const assets = useEditorStore((s) => s.assets);
   const setTime = useEditorStore((s) => s.setTime);
   const canvas = useEditorStore((s) => s.canvas);
 
@@ -231,6 +232,16 @@ export default function PropertyPanel() {
         {/* ---------------- 按类型的专属参数 ---------------- */}
         {block.type === 'image' && (
           <Section title="Image" accent={BLOCK_COLOR.image}>
+            <div className="mb-2 rounded-md border border-stroke bg-panel-3 px-2.5 py-2 text-[11px]">
+              <div className="text-ink-faint">视觉需求</div>
+              <div className="mt-1 break-words leading-relaxed text-ink-dim">
+                {block.props.visualPrompt || '未设置视觉提示词'}
+              </div>
+              <div className="mt-2 text-ink-faint">当前素材</div>
+              <div className="mt-1 truncate text-ink-dim">
+                {assets.find((asset) => asset.id === block.props.assetId)?.name || '未匹配素材'}
+              </div>
+            </div>
             <button
               onClick={replaceMedia}
               disabled={uploading}
