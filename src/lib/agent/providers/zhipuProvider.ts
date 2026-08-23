@@ -63,7 +63,7 @@ export class ZhipuProvider implements LLMProvider {
     const controller = new AbortController();
     const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const response = await fetch(ZHIPU_CHAT_URL, {
+      const response = await globalThis.fetch(ZHIPU_CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ export class ZhipuProvider implements LLMProvider {
       if (!content) throw new Error('智谱没有返回内容。');
       return extractJson(content);
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
         throw new Error('智谱请求超过 30 秒仍未响应，请检查网络或 API 服务状态。');
       }
       throw error;
