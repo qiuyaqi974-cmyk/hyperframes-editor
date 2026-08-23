@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "electron:bundle": "esbuild electron/runtime.ts --bundle --platform=node --format=esm --outfile=electron/runtime.mjs",
-    "electron": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5178 && npm run electron:bundle && electron --require tsx/cjs electron/main.ts\"",
+    "electron": "concurrently -k \"vite --host 127.0.0.1 --port 5178 --strictPort\" \"wait-on http://127.0.0.1:5178 && npm run electron:bundle && electron --require tsx/cjs electron/main.ts\"",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",

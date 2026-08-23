@@ -34,13 +34,20 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     webPreferences: {
+      devTools: true,
       contextIsolation: true,
       nodeIntegration: false,
       // Electron 运行时加载无类型的桥接脚本；preload.ts 是对应的类型化源码。
       preload: join(__dirname, 'preload.cjs'),
     },
   });
-  void window.loadURL('http://localhost:5178');
+  const url = 'http://127.0.0.1:5178';
+  console.log('loading url', url);
+  void window.loadURL(url).then(() => {
+    window.webContents.openDevTools();
+  }).catch((error) => {
+    console.error('failed to load url', error);
+  });
 }
 
 ipcMain.handle('generate-product-project', async (_event, input: ProductProjectInput = {}) => {
