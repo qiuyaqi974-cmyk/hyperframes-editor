@@ -1,3 +1,5 @@
+import type { ProjectSnapshot } from '@/types';
+
 interface ElectronBridge {
   generateProductProject: (input: {
     folderPath?: string;
@@ -6,7 +8,7 @@ interface ElectronBridge {
       targetAudience?: string;
       sellingPoints?: string[];
     };
-  }) => Promise<{ snapshot: unknown }>;
+  }) => Promise<{ snapshot: ProjectSnapshot }>;
 }
 
 /** 通过 Electron preload bridge 调用 Node 商品文件夹 Agent；普通浏览器不直接访问本地路径。 */
@@ -24,13 +26,14 @@ export default function ProductProjectLoader() {
     const rawPoints = window.prompt('卖点（每行一个）', '小巧便携\n充电使用\n快速榨汁\n清洗方便') ?? '';
 
     try {
-      await bridge.generateProductProject({
+      const { snapshot } = await bridge.generateProductProject({
         productInfo: {
           productName: productName || '未知商品',
           targetAudience: targetAudience || '普通消费者',
           sellingPoints: rawPoints.split(/[\n,，、]/).map((point) => point.trim()).filter(Boolean),
         },
       });
+      window.dispatchEvent(new CustomEvent('hyperframes:import-snapshot', { detail: snapshot }));
     } catch (error) {
       console.error('generate product project failed', error);
       window.alert(`商品项目生成失败：${error instanceof Error ? error.message : String(error)}`);
