@@ -15,10 +15,12 @@ export default function ProductVideoLoader() {
 
     try {
       const provider = new ZhipuProvider();
+      console.log('Using ZhipuProvider');
       const sellingPoints = rawPoints
         .split(/[\n,，、]/)
         .map((point) => point.trim())
         .filter(Boolean);
+      console.log('Calling LLM provider');
       const plan = await generateProductVideoPlan(
         {
           productName,
@@ -28,6 +30,7 @@ export default function ProductVideoLoader() {
         },
         provider,
       );
+      console.log('Generated ScenePlan:', plan);
       const snapshot = scenePlanToSnapshot(plan);
       useEditorStore.getState().importSnapshot(snapshot);
     } catch (error) {
