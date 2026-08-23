@@ -8,6 +8,7 @@ interface ElectronBridge {
 /** 通过 Electron preload bridge 调用 Node 商品文件夹 Agent；普通浏览器不直接访问本地路径。 */
 export default function ProductProjectLoader() {
   const handleGenerate = async () => {
+    alert('button clicked');
     console.log('click generate product project');
     const bridge = (window as Window & { hyperframesElectron?: ElectronBridge }).hyperframesElectron;
     console.log('electron bridge', bridge);
