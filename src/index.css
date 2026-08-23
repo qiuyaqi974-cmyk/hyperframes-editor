@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    background: #0e1014;
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+      sans-serif;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background: rgba(91, 140, 255, 0.35);
+  }
+}
+
+@layer components {
+  /* 滑杆 */
+  .hf-range {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    border-radius: 999px;
+    background: #2c313a;
+    outline: none;
+  }
+
+  .hf-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #e6e9ef;
+    border: 2px solid #5b8cff;
+    cursor: pointer;
+    transition: transform 0.12s ease;
+  }
+
+  .hf-range::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+
+  .hf-range::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #e6e9ef;
+    border: 2px solid #5b8cff;
+    cursor: pointer;
+  }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2c313a;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a414d;
+  }
+
+  /* 色板输入去掉浏览器默认内边距 */
+  input[type='color']::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  input[type='color']::-webkit-color-swatch {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+  }
+}
