@@ -8,7 +8,8 @@ import {
 } from '@/lib/blockFactory';
 import { getLayoutPosition } from '@/lib/layout/layoutPreset';
 import type { LayoutPreset } from '@/lib/layout/layoutPreset';
-import type { Block, ProjectSnapshot } from '@/types';
+import type { Asset, Block, ProjectSnapshot } from '@/types';
+import { matchAsset } from '@/lib/agent/assetMatcher';
 
 export type SceneBlockType = 'text' | 'voice' | 'subtitle' | 'card' | 'image';
 
@@ -39,6 +40,7 @@ function makeBlock(
   canvas: typeof CANVAS_DEFAULT,
   layer: number,
   start: number,
+  assets: Asset[],
 ): Block {
   const duration = Math.max(0.1, plan.duration);
   let block: Block;
@@ -60,7 +62,9 @@ function makeBlock(
     block.props.title = plan.content;
     block.props.body = '';
   } else {
-    block = createImageBlock(null, canvas, layer, start);
+    const match = plan.visualPrompt ? matchAsset(plan.visualPrompt, assets) : null;
+    const asset = match?.assetId ? assets.find((item) => item.id === match.assetId) ?? null : null;
+    block = createImageBlock(asset, canvas, layer, start);
     block.name = plan.content || '图片占位';
     if (plan.visualPrompt) block.props.visualPrompt = plan.visualPrompt;
   }
@@ -74,7 +78,7 @@ function makeBlock(
 }
 
 /** 将 Agent 输出的场景协议转换成 HyperFrames 可直接导入的工程快照。 */
-export function scenePlanToSnapshot(plan: ScenePlan): ProjectSnapshot {
+export function scenePlanToSnapshot(plan: ScenePlan, assets: Asset[] = []): ProjectSnapshot {
   const canvas = {
     ...CANVAS_DEFAULT,
     ...(plan.canvas ?? {}),
@@ -88,7 +92,7 @@ export function scenePlanToSnapshot(plan: ScenePlan): ProjectSnapshot {
     const sceneDuration = Math.max(0.1, scenePlan.duration);
     const sceneStart = elapsed;
     const sceneBlocks = scenePlan.blocks.map((blockPlan) =>
-      makeBlock(blockPlan, canvas, layer++, sceneStart),
+      makeBlock(blockPlan, canvas, layer++, sceneStart, assets),
     );
     blocks.push(...sceneBlocks);
     scenes.push({

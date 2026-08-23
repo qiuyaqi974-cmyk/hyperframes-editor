@@ -31,7 +31,7 @@ export default function ProductVideoLoader() {
         provider,
       );
       console.log('Generated ScenePlan:', plan);
-      const snapshot = scenePlanToSnapshot(plan);
+      const snapshot = scenePlanToSnapshot(plan, useEditorStore.getState().assets);
       useEditorStore.getState().importSnapshot(snapshot);
     } catch (error) {
       window.alert(`商品视频生成失败：${error instanceof Error ? error.message : String(error)}`);
