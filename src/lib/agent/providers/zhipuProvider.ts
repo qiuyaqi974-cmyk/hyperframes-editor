@@ -3,6 +3,16 @@ import type { LLMProvider } from '@/lib/agent/llmProvider';
 const ZHIPU_CHAT_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const REQUEST_TIMEOUT_MS = 30_000;
 
+function isDevelopment(): boolean {
+  const viteEnv = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env;
+  const nodeEnv = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  return viteEnv?.DEV === true || nodeEnv?.NODE_ENV !== 'production';
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
+}
+
 function defaultApiKey(): string {
   const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
   const nodeEnv = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env;
@@ -60,10 +70,28 @@ export class ZhipuProvider implements LLMProvider {
   async generate(prompt: string): Promise<string> {
     if (!this.apiKey) throw new Error('未配置 VITE_ZHIPU_API_KEY，无法调用智谱。');
 
-    const controller = new AbortController();
-    const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const response = await globalThis.fetch(ZHIPU_CHAT_URL, {
+    const startedAt = Date.now();
+    const assetCount = (prompt.match(/"assetId"\s*:/g) ?? []).length;
+    const hasImage = /"kind"\s*:\s*"image"/i.test(prompt);
+    const hasVideo = /"kind"\s*:\s*"video"/i.test(prompt);
+    console.log('[zhipu] request start');
+    console.log('[zhipu] model:', this.model);
+    console.log('[zhipu] prompt length:', prompt.length);
+    console.log('[zhipu] assets count:', assetCount);
+    console.log('[zhipu] has image:', hasImage);
+    console.log('[zhipu] has video:', hasVideo);
+    if (isDevelopment()) {
+      console.log('----- ZHIPU PROMPT START -----');
+      console.log(prompt);
+      console.log('----- ZHIPU PROMPT END -----');
+    }
+
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const response = await globalThis.fetch(ZHIPU_CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +99,8 @@ export class ZhipuProvider implements LLMProvider {
         },
         body: JSON.stringify({
           model: this.model,
-          temperature: 0.2,
+          temperature: 0.3,
+          max_tokens: 2000,
           response_format: { type: 'json_object' },
           messages: [
             {
@@ -82,9 +111,9 @@ export class ZhipuProvider implements LLMProvider {
           ],
         }),
         signal: controller.signal,
-      });
+        });
 
-      const responseText = await response.text();
+        const responseText = await response.text();
       let payload: {
         error?: { message?: string };
         choices?: Array<{ message?: { content?: string | null } }>;
@@ -94,21 +123,25 @@ export class ZhipuProvider implements LLMProvider {
       } catch {
         // 非 JSON 响应仍保留原文，便于诊断网关或鉴权错误。
       }
-      if (!response.ok) {
-        console.error('智谱 API 错误响应：', responseText);
-        throw new Error(`智谱请求失败：${payload.error?.message ?? `HTTP ${response.status}`}`);
+        if (!response.ok) {
+          console.error('智谱 API 错误响应：', responseText);
+          throw new Error(`智谱请求失败：${payload.error?.message ?? `HTTP ${response.status}`}`);
+        }
+        const content = payload.choices?.[0]?.message?.content;
+        if (!content) throw new Error('智谱没有返回内容。');
+        console.log('[zhipu] success cost', `${Date.now() - startedAt} ms`);
+        return extractJson(content);
+      } catch (error) {
+        lastError = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError'
+          ? new Error('智谱请求超过 30 秒仍未响应，请检查网络或 API 服务状态。')
+          : error;
+        console.error(`[zhipu] attempt ${attempt + 1} failed`, lastError);
+        if (attempt < 2) await delay(attempt === 0 ? 2000 : 5000);
+      } finally {
+        globalThis.clearTimeout(timeout);
       }
-      const content = payload.choices?.[0]?.message?.content;
-      if (!content) throw new Error('智谱没有返回内容。');
-      return extractJson(content);
-    } catch (error) {
-      if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
-        throw new Error('智谱请求超过 30 秒仍未响应，请检查网络或 API 服务状态。');
-      }
-      throw error;
-    } finally {
-      globalThis.clearTimeout(timeout);
     }
+    throw lastError instanceof Error ? lastError : new Error('智谱请求失败。');
   }
 }
 
