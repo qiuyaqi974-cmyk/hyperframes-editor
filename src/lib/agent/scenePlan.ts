@@ -41,6 +41,7 @@ function makeBlock(
   layer: number,
   start: number,
   assets: Asset[],
+  usedAssetIds: string[],
 ): Block {
   const duration = Math.max(0.1, plan.duration);
   let block: Block;
@@ -62,8 +63,12 @@ function makeBlock(
     block.props.title = plan.content;
     block.props.body = '';
   } else {
-    const match = plan.visualPrompt ? matchAsset(plan.visualPrompt, assets) : null;
+    const match = matchAsset(plan.visualPrompt ?? '', assets, usedAssetIds, plan.content);
     const asset = match?.assetId ? assets.find((item) => item.id === match.assetId) ?? null : null;
+    if (match?.assetId) usedAssetIds.push(match.assetId);
+    console.log('image block:', plan.visualPrompt ?? '');
+    console.log('matched:', asset?.name ?? null);
+    console.log('confidence:', match?.confidence ?? 0);
     block = createImageBlock(asset, canvas, layer, start);
     block.name = plan.content || '图片占位';
     if (plan.visualPrompt) block.props.visualPrompt = plan.visualPrompt;
@@ -85,6 +90,7 @@ export function scenePlanToSnapshot(plan: ScenePlan, assets: Asset[] = []): Proj
   };
   const blocks: Block[] = [];
   const scenes: ProjectSnapshot['scenes'] = [];
+  const usedAssetIds: string[] = [];
   let elapsed = 0;
   let layer = 0;
 
@@ -92,7 +98,7 @@ export function scenePlanToSnapshot(plan: ScenePlan, assets: Asset[] = []): Proj
     const sceneDuration = Math.max(0.1, scenePlan.duration);
     const sceneStart = elapsed;
     const sceneBlocks = scenePlan.blocks.map((blockPlan) =>
-      makeBlock(blockPlan, canvas, layer++, sceneStart, assets),
+      makeBlock(blockPlan, canvas, layer++, sceneStart, assets, usedAssetIds),
     );
     blocks.push(...sceneBlocks);
     scenes.push({
