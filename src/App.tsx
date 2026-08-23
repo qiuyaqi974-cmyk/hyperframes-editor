@@ -10,11 +10,12 @@ import { fileToNarration } from '@/lib/assets';
 import { generateHyperFramesHtml } from '@/lib/exportHtml';
 import { loadAutosave, saveAutosave } from '@/lib/persistence';
 import { THEME_LIST } from '@/lib/themes';
-import type { ThemeId } from '@/types';
+import type { ProjectSnapshot, ThemeId } from '@/types';
 import { generateProjectSnapshot } from '@/lib/agent/projectGenerator';
 import { planContent } from '@/lib/agent/contentPlanner';
 import ScenePlanLoader from '@/components/agent/ScenePlanLoader';
 import ProductVideoLoader from '@/components/agent/ProductVideoLoader';
+import ProductProjectLoader from '@/components/agent/ProductProjectLoader';
 
 /**
  * 播放引擎。
@@ -209,6 +210,15 @@ export default function App() {
   const srtRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const onImportSnapshot = (event: Event) => {
+      const snapshot = (event as CustomEvent<ProjectSnapshot>).detail;
+      if (snapshot) useEditorStore.getState().importSnapshot(snapshot);
+    };
+    window.addEventListener('hyperframes:import-snapshot', onImportSnapshot);
+    return () => window.removeEventListener('hyperframes:import-snapshot', onImportSnapshot);
+  }, []);
+
   const handleExport = () => {
     const json = exportProject();
     const blob = new Blob([json], { type: 'application/json' });
@@ -375,6 +385,7 @@ export default function App() {
           </button>
           <ScenePlanLoader />
           <ProductVideoLoader />
+          <ProductProjectLoader />
           <button
             onClick={handleMp4Export}
             className="rounded-md bg-emerald-500 px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
