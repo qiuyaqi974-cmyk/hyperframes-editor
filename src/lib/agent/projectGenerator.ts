@@ -1,5 +1,6 @@
 import { CANVAS_DEFAULT, createSubtitleBlock, createTextBlock, createVoiceBlock } from '@/lib/blockFactory';
 import type { ProjectSnapshot } from '@/types';
+import { getLayoutPosition } from '@/lib/layout/layoutPreset';
 
 export interface AgentProjectInput {
   topic: string;
@@ -20,14 +21,17 @@ export function generateProjectSnapshot(input: AgentProjectInput): ProjectSnapsh
 
   const title = createTextBlock(canvas, 0, 0);
   title.name = 'AI标题';
+  title.layoutPreset = 'top-title';
+  title.position = getLayoutPosition(title.layoutPreset);
   title.props.text = topic;
   title.props.fontSize = 108;
   title.props.maxWidth = 1400;
-  title.position = { x: 260, y: 260 };
   title.duration = Math.min(4, estimatedDuration);
 
   const voice = createVoiceBlock(canvas, 1, 0);
   voice.name = 'AI旁白';
+  voice.layoutPreset = 'center-product';
+  voice.position = getLayoutPosition(voice.layoutPreset);
   voice.props.text = script;
   voice.props.src = null;
   voice.props.duration = 0;
@@ -36,6 +40,8 @@ export function generateProjectSnapshot(input: AgentProjectInput): ProjectSnapsh
 
   const subtitle = createSubtitleBlock(canvas, 2, 0);
   subtitle.name = 'AI字幕占位';
+  subtitle.layoutPreset = 'bottom-subtitle';
+  subtitle.position = getLayoutPosition(subtitle.layoutPreset);
   subtitle.props.text = script;
   subtitle.duration = estimatedDuration;
 

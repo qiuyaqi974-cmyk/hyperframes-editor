@@ -1,3 +1,5 @@
+import type { LayoutPreset } from '@/lib/layout/layoutPreset';
+
 /**
  * HyperFrames 积木编辑器 —— 核心数据模型
  *
@@ -275,6 +277,8 @@ export interface BaseBlock {
   /** SRT 自动生成的积木可据此安全地重新生成，不影响手工积木 */
   source?: 'manual' | 'srt' | 'auto';
   sceneId?: string;
+  /** Agent 生成时使用的语义布局；手动积木可以不设置。 */
+  layoutPreset?: LayoutPreset;
 }
 
 export interface ImageBlockData extends BaseBlock {
