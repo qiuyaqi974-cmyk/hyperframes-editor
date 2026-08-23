@@ -1,7 +1,7 @@
 import type { LLMProvider } from '@/lib/agent/llmProvider';
 
 const ZHIPU_CHAT_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 function isDevelopment(): boolean {
   const viteEnv = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env;
@@ -90,7 +90,13 @@ export class ZhipuProvider implements LLMProvider {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const controller = new AbortController();
       const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      let enteredFetch = false;
+      let receivedResponse = false;
       try {
+        console.log('[zhipu] api key exists', Boolean(this.apiKey));
+        console.log('[zhipu] request url', ZHIPU_CHAT_URL);
+        console.log('[zhipu] prompt length', prompt.length);
+        enteredFetch = true;
         const response = await globalThis.fetch(ZHIPU_CHAT_URL, {
         method: 'POST',
         headers: {
@@ -112,6 +118,8 @@ export class ZhipuProvider implements LLMProvider {
         }),
         signal: controller.signal,
         });
+        receivedResponse = true;
+        console.log('[zhipu] response status', response.status);
 
         const responseText = await response.text();
       let payload: {
@@ -133,8 +141,12 @@ export class ZhipuProvider implements LLMProvider {
         return extractJson(content);
       } catch (error) {
         lastError = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError'
-          ? new Error('智谱请求超过 30 秒仍未响应，请检查网络或 API 服务状态。')
+          ? new Error('智谱请求超过 60 秒仍未响应，请检查网络或 API 服务状态。')
           : error;
+        if (lastError instanceof Error && lastError.message.includes('超过')) {
+          console.error('[zhipu] fetch entered', enteredFetch);
+          console.error('[zhipu] response received', receivedResponse);
+        }
         console.error(`[zhipu] attempt ${attempt + 1} failed`, lastError);
         if (attempt < 2) await delay(attempt === 0 ? 2000 : 5000);
       } finally {
