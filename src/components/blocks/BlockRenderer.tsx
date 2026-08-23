@@ -13,6 +13,7 @@ import CursorBlock from './CursorBlock';
 import ChartBlock from './ChartBlock';
 import ScrollStoryBlock from './ScrollStoryBlock';
 import SubtitleBlock from './SubtitleBlock';
+import VoiceBlock from './VoiceBlock';
 
 interface Props {
   block: Block;
@@ -142,6 +143,7 @@ export default function BlockRenderer({
       {block.type === 'chart' && <ChartBlock block={block} frame={frame} />}
       {block.type === 'scrollstory' && <ScrollStoryBlock block={block} frame={frame} />}
       {block.type === 'subtitle' && <SubtitleBlock block={block} frame={frame} />}
+      {block.type === 'voice' && <VoiceBlock block={block} frame={frame} />}
 
       {selected && (
         <div

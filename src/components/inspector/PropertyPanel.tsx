@@ -35,6 +35,7 @@ const TYPE_LABEL: Record<Block['type'], string> = {
   chart: 'ChartBlock',
   scrollstory: 'ScrollStoryBlock',
   subtitle: 'SubtitleBlock',
+  voice: 'VoiceBlock',
 };
 
 const ANIM_OPTIONS: { value: AnimationType; label: string }[] = [
@@ -619,6 +620,32 @@ export default function PropertyPanel() {
             <Row label="宽度">
               <NumberField value={block.props.maxWidth} onChange={(maxWidth) => updateProps(block.id, { maxWidth })} min={50} max={1920} step={10} suffix="px" />
             </Row>
+          </Section>
+        )}
+
+        {block.type === 'voice' && (
+          <Section title="Voice · AI 配音" accent={BLOCK_COLOR.voice}>
+            <TextArea value={block.props.text} onChange={(text) => updateProps(block.id, { text })} rows={4} />
+            <Row label="发音人">
+              <input
+                value={block.props.voiceName}
+                onChange={(e) => updateProps(block.id, { voiceName: e.target.value })}
+                className="w-full rounded-md border border-stroke bg-panel-3 px-2 py-1.5 text-[11px] text-ink outline-none focus:border-accent"
+                placeholder="x6_lingyuyan_pro"
+              />
+            </Row>
+            <Row label="语速">
+              <SliderField value={block.props.speed} onChange={(speed) => updateProps(block.id, { speed })} min={25} max={100} step={1} format={(v) => `${Math.round(v)}`} />
+            </Row>
+            <Row label="音量">
+              <SliderField value={block.props.volume} onChange={(volume) => updateProps(block.id, { volume })} min={0} max={100} step={1} format={(v) => `${Math.round(v)}%`} />
+            </Row>
+            <Row label="音频时长">
+              <NumberField value={block.props.duration} onChange={(duration) => updateProps(block.id, { duration })} min={0} max={3600} step={0.1} suffix="秒" />
+            </Row>
+            <div className="rounded-md border border-dashed border-cyan-300/30 bg-cyan-300/5 px-3 py-2 text-[10.5px] leading-relaxed text-cyan-100/70">
+              {block.props.src ? '音频已挂载，可在画布中预览。' : '当前为音频占位；接入 TTS 后将把生成的音频地址写入这里。'}
+            </div>
           </Section>
         )}
 

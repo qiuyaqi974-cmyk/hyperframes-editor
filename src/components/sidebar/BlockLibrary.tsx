@@ -124,6 +124,17 @@ const ITEMS: LibItem[] = [
       </svg>
     ),
   },
+  {
+    type: 'voice',
+    title: 'Voice AI配音',
+    desc: '配音文案 / 音色 / 语速 · 音频占位',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <rect x="3" y="8" width="4" height="8" rx="2" />
+        <path d="M7 12h3m0-4v8m0-5h3m0-3v8m0-5h3m0-2v4m0-1h3" />
+      </svg>
+    ),
+  },
 ];
 
 export default function BlockLibrary() {

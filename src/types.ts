@@ -20,7 +20,8 @@ export type BlockType =
   | 'cursor'
   | 'chart'
   | 'scrollstory'
-  | 'subtitle';
+  | 'subtitle'
+  | 'voice';
 
 /** 入场动画类型 */
 export type AnimationType = 'none' | 'fade' | 'slide' | 'scale';
@@ -104,7 +105,8 @@ export type BlockProps =
   | CursorProps
   | ChartProps
   | ScrollStoryProps
-  | SubtitleProps;
+  | SubtitleProps
+  | VoiceProps;
 
 /* ------------------------------------------------------------------ */
 /* 高级积木 props                                                       */
@@ -234,6 +236,21 @@ export interface SubtitleProps {
   paddingY: number;
 }
 
+/** 配音占位：先承载文案与时间轴信息，后续接入 TTS 生成音频。 */
+export interface VoiceProps {
+  text: string;
+  voiceName: string;
+  speed: number;
+  volume: number;
+  src: string | null;
+  duration: number;
+  /** 编辑器展示用的占位卡片尺寸与通用视觉参数。 */
+  width: number;
+  height: number;
+  scale: number;
+  opacity: number;
+}
+
 /* ------------------------------------------------------------------ */
 /* 统一 Block 结构                                                      */
 /* ------------------------------------------------------------------ */
@@ -309,6 +326,11 @@ export interface SubtitleBlockData extends BaseBlock {
   props: SubtitleProps;
 }
 
+export interface VoiceBlockData extends BaseBlock {
+  type: 'voice';
+  props: VoiceProps;
+}
+
 export type Block =
   | ImageBlockData
   | TextBlockData
@@ -319,7 +341,8 @@ export type Block =
   | CursorBlockData
   | ChartBlockData
   | ScrollStoryBlockData
-  | SubtitleBlockData;
+  | SubtitleBlockData
+  | VoiceBlockData;
 
 /* ------------------------------------------------------------------ */
 /* 素材库                                                              */

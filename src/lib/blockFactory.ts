@@ -14,6 +14,7 @@ import type {
   SubtitleBlockData,
   TextBlockData,
   VideoBlockData,
+  VoiceBlockData,
 } from '@/types';
 
 export const CANVAS_DEFAULT: CanvasConfig = {
@@ -48,6 +49,7 @@ const BLOCK_LABEL: Record<BlockType, string> = {
   chart: '图表',
   scrollstory: '滚动故事',
   subtitle: '字幕',
+  voice: 'AI配音',
 };
 
 /** 让新素材以合适尺寸落到画布上：最长边不超过画布 60% */
@@ -404,6 +406,39 @@ export function createSubtitleBlock(
   };
 }
 
+export function createVoiceBlock(
+  canvas: CanvasConfig,
+  layer: number,
+  start = 0,
+): VoiceBlockData {
+  const width = 520;
+  const height = 164;
+  return {
+    id: uid('voi'),
+    type: 'voice',
+    name: 'AI配音',
+    props: {
+      text: '请输入配音文字',
+      voiceName: 'x6_lingyuyan_pro',
+      speed: 60,
+      volume: 50,
+      src: null,
+      duration: 0,
+      width,
+      height,
+      scale: 1,
+      opacity: 1,
+    },
+    animation: { ...DEFAULT_ANIMATION, type: 'fade', duration: 0.35 },
+    position: centerPosition(width, height, canvas),
+    start,
+    duration: 10,
+    layer,
+    visible: true,
+    locked: false,
+  };
+}
+
 /** 视频作为背景层时，占满整个合成 */
 export function resolveBox(block: Block, canvas: CanvasConfig) {
   if (block.type === 'video' && block.props.background) {
@@ -440,4 +475,5 @@ export const BLOCK_COLOR: Record<BlockType, string> = {
   chart: '#a3e635',
   scrollstory: '#fbbf24',
   subtitle: '#fb7185',
+  voice: '#22d3ee',
 };

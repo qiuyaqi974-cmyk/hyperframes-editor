@@ -19,6 +19,7 @@ import type {
   SubtitleProps,
   TextProps,
   VideoProps,
+  VoiceProps,
   ThemeId,
 } from '@/types';
 import {
@@ -33,6 +34,7 @@ import {
   createSubtitleBlock,
   createTextBlock,
   createVideoBlock,
+  createVoiceBlock,
 } from '@/lib/blockFactory';
 import { THEMES, styleBlockForTheme } from '@/lib/themes';
 import { compositionDuration } from '@/lib/animation';
@@ -84,7 +86,8 @@ interface EditorState {
         CursorProps &
         ChartProps &
         ScrollStoryProps &
-        SubtitleProps
+        SubtitleProps &
+        VoiceProps
     >,
   ) => void;
   updateAnimation: (id: string, patch: Partial<AnimationSpec>) => void;
@@ -184,6 +187,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     else if (type === 'chart') block = createChartBlock(canvas, layer, start);
     else if (type === 'scrollstory') block = createScrollStoryBlock(canvas, layer, start);
     else if (type === 'subtitle') block = createSubtitleBlock(canvas, layer, start);
+    else if (type === 'voice') block = createVoiceBlock(canvas, layer, start);
     else block = createTextBlock(canvas, layer, start);
 
     block = styleBlockForTheme(block, THEMES[themeId]);
