@@ -73,7 +73,7 @@ function buildPrompt(input: ProductVideoInput): string {
           { type: 'voice', content: '旁白内容', layoutPreset: 'bottom-subtitle', duration: 3 },
           { type: 'subtitle', content: '字幕内容', layoutPreset: 'bottom-subtitle', duration: 3 },
           { type: 'card', content: '卖点信息', layoutPreset: 'feature-card', duration: 3 },
-          { type: 'image', content: '产品展示', visualPrompt: '办公室女生使用便携榨汁杯制作果汁', assetHint: '商品正面图.jpg', layoutPreset: 'center-product', duration: 3 },
+          { type: 'image', content: '产品展示', assetId: input.assetInsights?.find((asset) => asset.kind === 'image')?.assetId, visualPrompt: '办公室女生使用便携榨汁杯制作果汁', assetHint: '商品正面图.jpg', layoutPreset: 'center-product', duration: 3 },
         ],
       }],
     }, null, 2),
@@ -88,7 +88,7 @@ function buildPrompt(input: ProductVideoInput): string {
     '7. 每个 block 必须包含 type、content、duration、layoutPreset。',
     '8. image（以及未来扩展的 video）类型必须额外包含 visualPrompt，用一句话描述要生成或检索的画面。示例：{"type":"image","content":"产品展示","visualPrompt":"办公室女生使用便携榨汁杯制作果汁"}。',
     '9. 返回前自行检查：scenes 存在；每个 scene 的 blocks 是数组；每个 type 都合法；最终内容是可解析的 JSON。',
-    '10. 只能使用以下已有素材。image block 必须增加 assetHint，填写素材文件名；不要虚构素材。',
+    '10. 只能使用以下已有素材。image block 必须增加 assetId，且只能填写 AssetInsight 中存在的 assetId；不要虚构素材。assetHint 作为旧格式兼容字段可以同时保留。',
     `ASSET_INSIGHTS:\n${JSON.stringify(input.assetInsights ?? [], null, 2)}`,
     `INPUT_JSON:\n${JSON.stringify(input)}`,
   ].join('\n');

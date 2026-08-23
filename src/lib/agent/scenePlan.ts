@@ -9,13 +9,13 @@ import {
 import { getLayoutPosition } from '@/lib/layout/layoutPreset';
 import type { LayoutPreset } from '@/lib/layout/layoutPreset';
 import type { Asset, Block, ProjectSnapshot } from '@/types';
-import { matchAsset } from '@/lib/agent/assetMatcher';
 
 export type SceneBlockType = 'text' | 'voice' | 'subtitle' | 'card' | 'image';
 
 export interface SceneBlockPlan {
   type: SceneBlockType;
   content: string;
+  assetId?: string;
   assetHint?: string;
   /** 用于后续生成或检索视觉素材的描述；旧工程可以省略。 */
   visualPrompt?: string;
@@ -42,7 +42,6 @@ function makeBlock(
   layer: number,
   start: number,
   assets: Asset[],
-  usedAssetIds: string[],
 ): Block {
   const duration = Math.max(0.1, plan.duration);
   let block: Block;
@@ -64,13 +63,10 @@ function makeBlock(
     block.props.title = plan.content;
     block.props.body = '';
   } else {
-    const match = matchAsset(plan.visualPrompt ?? '', assets, usedAssetIds, plan.content, plan.assetHint);
-    const asset = match?.assetId ? assets.find((item) => item.id === match.assetId) ?? null : null;
-    if (match?.assetId) usedAssetIds.push(match.assetId);
+    const asset = plan.assetId ? assets.find((item) => item.id === plan.assetId) ?? null : null;
     console.log('image block:', plan.visualPrompt ?? '');
     console.log('assetHint:', plan.assetHint ?? '');
-    console.log('matched:', asset?.name ?? null);
-    console.log('confidence:', match?.confidence ?? 0);
+    console.log('assetId:', plan.assetId ?? null);
     block = createImageBlock(asset, canvas, layer, start);
     block.name = plan.content || '图片占位';
     if (plan.visualPrompt) block.props.visualPrompt = plan.visualPrompt;
@@ -92,7 +88,6 @@ export function scenePlanToSnapshot(plan: ScenePlan, assets: Asset[] = []): Proj
   };
   const blocks: Block[] = [];
   const scenes: ProjectSnapshot['scenes'] = [];
-  const usedAssetIds: string[] = [];
   let elapsed = 0;
   let layer = 0;
 
@@ -100,7 +95,7 @@ export function scenePlanToSnapshot(plan: ScenePlan, assets: Asset[] = []): Proj
     const sceneDuration = Math.max(0.1, scenePlan.duration);
     const sceneStart = elapsed;
     const sceneBlocks = scenePlan.blocks.map((blockPlan) =>
-      makeBlock(blockPlan, canvas, layer++, sceneStart, assets, usedAssetIds),
+      makeBlock(blockPlan, canvas, layer++, sceneStart, assets),
     );
     blocks.push(...sceneBlocks);
     scenes.push({
