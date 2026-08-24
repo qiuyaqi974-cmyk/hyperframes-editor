@@ -24,6 +24,7 @@ import SceneBlueprintLoader from '@/components/agent/SceneBlueprintLoader';
 import DirectorAgentLoader from '@/components/agent/DirectorAgentLoader';
 import DirectorPlanAdapterLoader from '@/components/agent/DirectorPlanAdapterLoader';
 import AssetResolverLoader from '@/components/agent/AssetResolverLoader';
+import AssetInsightExportButton from '@/components/agent/AssetInsightExportButton';
 
 /**
  * 播放引擎。
@@ -394,6 +395,7 @@ export default function App() {
           <ScenePlanLoader />
           <ProductVideoLoader />
           <ProductProjectLoader />
+          <AssetInsightExportButton />
           <ContentCaseLoader />
           <ContentDatasetCleanerLoader />
           <DirectorTemplateLoader />

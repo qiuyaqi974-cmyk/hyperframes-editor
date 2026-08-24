@@ -1,6 +1,5 @@
 import type { ProjectSnapshot } from '@/types';
 import type { AssetInsight } from '@/lib/agent/assetAnalyzer';
-import { useState } from 'react';
 
 interface ElectronBridge {
   generateProductProject: (input: {
@@ -15,21 +14,6 @@ interface ElectronBridge {
 
 /** 通过 Electron preload bridge 调用 Node 商品文件夹 Agent；普通浏览器不直接访问本地路径。 */
 export default function ProductProjectLoader() {
-  const [assetInsights, setAssetInsights] = useState<AssetInsight[]>([]);
-  const exportInsights = () => {
-    if (!assetInsights.length) {
-      window.alert('暂无AssetInsight。请先完成商品文件夹生成。');
-      return;
-    }
-    const blob = new Blob([JSON.stringify(assetInsights, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'asset-insights.json';
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
   const handleGenerate = async () => {
     console.log('1 click');
     console.log('click generate product project');
@@ -49,7 +33,7 @@ export default function ProductProjectLoader() {
           sellingPoints: [],
         },
       });
-      setAssetInsights(assetInsights ?? []);
+      window.dispatchEvent(new CustomEvent('hyperframes:asset-insights', { detail: assetInsights ?? [] }));
       window.dispatchEvent(new CustomEvent('hyperframes:import-snapshot', { detail: snapshot }));
     } catch (error) {
       console.error(error);
@@ -59,13 +43,12 @@ export default function ProductProjectLoader() {
   };
 
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <button type="button" onClick={handleGenerate} className="rounded-md border border-orange-300/40 bg-orange-300/10 px-2.5 py-[5px] text-[11px] font-medium text-orange-100 hover:bg-orange-300/20">
-        从商品文件夹生成视频
-      </button>
-      <button type="button" onClick={exportInsights} className="rounded-md border border-orange-300/40 bg-orange-300/10 px-2.5 py-[5px] text-[11px] font-medium text-orange-100 hover:bg-orange-300/20">
-        导出当前AssetInsights
-      </button>
-    </span>
+    <button
+      type="button"
+      onClick={handleGenerate}
+      className="rounded-md border border-orange-300/40 bg-orange-300/10 px-2.5 py-[5px] text-[11px] font-medium text-orange-100 hover:bg-orange-300/20"
+    >
+      从商品文件夹生成视频
+    </button>
   );
 }
