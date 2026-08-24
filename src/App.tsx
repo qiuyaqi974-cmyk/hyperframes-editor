@@ -18,6 +18,7 @@ import ProductVideoLoader from '@/components/agent/ProductVideoLoader';
 import ProductProjectLoader from '@/components/agent/ProductProjectLoader';
 import ContentCaseLoader from '@/components/agent/ContentCaseLoader';
 import ContentDatasetCleanerLoader from '@/components/agent/ContentDatasetCleanerLoader';
+import DirectorTemplateLoader from '@/components/agent/DirectorTemplateLoader';
 
 /**
  * 播放引擎。
@@ -390,6 +391,7 @@ export default function App() {
           <ProductProjectLoader />
           <ContentCaseLoader />
           <ContentDatasetCleanerLoader />
+          <DirectorTemplateLoader />
           <button
             onClick={handleMp4Export}
             className="rounded-md bg-emerald-500 px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
