@@ -22,6 +22,7 @@ import DirectorTemplateLoader from '@/components/agent/DirectorTemplateLoader';
 import DirectorTemplateRefinerLoader from '@/components/agent/DirectorTemplateRefinerLoader';
 import SceneBlueprintLoader from '@/components/agent/SceneBlueprintLoader';
 import DirectorAgentLoader from '@/components/agent/DirectorAgentLoader';
+import DirectorPlanAdapterLoader from '@/components/agent/DirectorPlanAdapterLoader';
 
 /**
  * 播放引擎。
@@ -398,6 +399,7 @@ export default function App() {
           <DirectorTemplateRefinerLoader />
           <SceneBlueprintLoader />
           <DirectorAgentLoader />
+          <DirectorPlanAdapterLoader />
           <button
             onClick={handleMp4Export}
             className="rounded-md bg-emerald-500 px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
