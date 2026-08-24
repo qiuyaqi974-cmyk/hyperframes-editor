@@ -11,3 +11,24 @@ export interface DirectorTemplate {
   visualStrategy: { camera: string; subtitle: string; scene: string };
   applicableTopics: string[];
 }
+
+export interface DirectorTimelineStep {
+  duration: number;
+  purpose: string;
+  emotion: string;
+  contentAction: string;
+  visualNeed: string;
+  subtitleStyle: string;
+}
+
+export interface DirectorTemplateV2 {
+  id: string;
+  name: string;
+  applicableContent: string[];
+  audience: string;
+  goal: string;
+  timeline: DirectorTimelineStep[];
+  hookRule: string;
+  middleRule: string;
+  endingRule: string;
+}

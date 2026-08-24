@@ -1,0 +1,92 @@
+[
+  {
+    "id": "director-ai-teaching",
+    "name": "AI知识教学型",
+    "applicableContent": ["AI", "效率", "学习", "知识教学"],
+    "audience": "关注AI、效率、学习的用户",
+    "goal": "帮助观众理解问题并完成行动",
+    "timeline": [
+      { "duration": 5, "purpose": "展示提出错误认知，快速建立关注", "emotion": "认知纠正与获得感", "contentAction": "用一句口播或画面提出问题、结果或反差", "visualNeed": "真人口播+辅助素材；用与“提出错误认知”对应的强画面开场", "subtitleStyle": "大字钩子，重点词高亮" },
+      { "duration": 25, "purpose": "展开解释为什么错误，推进核心信息", "emotion": "认知纠正与获得感", "contentAction": "用口播拆解信息，并用一个例子完成证明", "visualNeed": "根据“解释为什么错误”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" },
+      { "duration": 30, "purpose": "总结给出解决步骤，推动观众行动", "emotion": "认知纠正与获得感", "contentAction": "给出明确结论、步骤或行动引导", "visualNeed": "根据“给出解决步骤”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" }
+    ],
+    "hookRule": "前三秒制造认知冲突",
+    "middleRule": "拆解旧方法的问题",
+    "endingRule": "给具体执行步骤"
+  },
+  {
+    "id": "director-story-insight",
+    "name": "真实故事洞察型",
+    "applicableContent": ["情感", "成长", "关系", "故事洞察"],
+    "audience": "关注情感、成长、关系的用户",
+    "goal": "用清晰叙事传递核心信息并促成记忆",
+    "timeline": [
+      { "duration": 5, "purpose": "展示讲述真实场景，快速建立关注", "emotion": "共鸣与好奇", "contentAction": "用一句口播或画面提出问题、结果或反差", "visualNeed": "真人口播+辅助素材；用与“讲述真实场景”对应的强画面开场", "subtitleStyle": "大字钩子，重点词高亮" },
+      { "duration": 25, "purpose": "展开提炼反常识观点，推进核心信息", "emotion": "共鸣与好奇", "contentAction": "用口播拆解信息，并用一个例子完成证明", "visualNeed": "根据“提炼反常识观点”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" },
+      { "duration": 30, "purpose": "总结回扣普遍人性，推动观众行动", "emotion": "共鸣与好奇", "contentAction": "给出明确结论、步骤或行动引导", "visualNeed": "根据“回扣普遍人性”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" }
+    ],
+    "hookRule": "用具体细节制造代入感",
+    "middleRule": "从故事细节推导核心矛盾",
+    "endingRule": "用一句判断留下余味"
+  },
+  {
+    "id": "director-problem-solving",
+    "name": "问题拆解型",
+    "applicableContent": ["职场", "效率", "生活", "问题解决"],
+    "audience": "关注职场、效率、生活的用户",
+    "goal": "帮助观众理解问题并完成行动",
+    "timeline": [
+      { "duration": 5, "purpose": "展示提出痛点，快速建立关注", "emotion": "焦虑缓解与掌控感", "contentAction": "用一句口播或画面提出问题、结果或反差", "visualNeed": "真人口播+辅助素材；用与“提出痛点”对应的强画面开场", "subtitleStyle": "大字钩子，重点词高亮" },
+      { "duration": 25, "purpose": "展开拆分关键原因，推进核心信息", "emotion": "焦虑缓解与掌控感", "contentAction": "用口播拆解信息，并用一个例子完成证明", "visualNeed": "根据“拆分关键原因”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" },
+      { "duration": 30, "purpose": "总结给出可执行方案，推动观众行动", "emotion": "焦虑缓解与掌控感", "contentAction": "给出明确结论、步骤或行动引导", "visualNeed": "根据“给出可执行方案”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" }
+    ],
+    "hookRule": "直接点出观众正在经历的问题",
+    "middleRule": "按因果顺序拆解问题",
+    "endingRule": "提供一条今天就能执行的建议"
+  },
+  {
+    "id": "director-contrarian",
+    "name": "观点辩证型",
+    "applicableContent": ["社会", "关系", "认知", "观点表达"],
+    "audience": "关注社会、关系、认知的用户",
+    "goal": "建立认知冲击并留下可讨论观点",
+    "timeline": [
+      { "duration": 5, "purpose": "展示抛出争议观点，快速建立关注", "emotion": "争议与思考", "contentAction": "用一句口播或画面提出问题、结果或反差", "visualNeed": "真人口播+辅助素材；用与“抛出争议观点”对应的强画面开场", "subtitleStyle": "大字钩子，重点词高亮" },
+      { "duration": 25, "purpose": "展开回应常见反对意见，推进核心信息", "emotion": "争议与思考", "contentAction": "用口播拆解信息，并用一个例子完成证明", "visualNeed": "根据“回应常见反对意见”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" },
+      { "duration": 30, "purpose": "总结给出更深一层判断，推动观众行动", "emotion": "争议与思考", "contentAction": "给出明确结论、步骤或行动引导", "visualNeed": "根据“给出更深一层判断”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" }
+    ],
+    "hookRule": "先说出容易引发争议的结论",
+    "middleRule": "回应反对意见并补充边界",
+    "endingRule": "留下可讨论的开放判断"
+  },
+  {
+    "id": "director-checklist",
+    "name": "清单步骤型",
+    "applicableContent": ["教程", "工具", "技能", "清单教程"],
+    "audience": "关注教程、工具、技能的用户",
+    "goal": "帮助观众理解问题并完成行动",
+    "timeline": [
+      { "duration": 5, "purpose": "展示说明目标，快速建立关注", "emotion": "确定感与行动欲", "contentAction": "用一句口播或画面提出问题、结果或反差", "visualNeed": "真人口播+辅助素材；用与“说明目标”对应的强画面开场", "subtitleStyle": "大字钩子，重点词高亮" },
+      { "duration": 25, "purpose": "展开列出步骤或清单，推进核心信息", "emotion": "确定感与行动欲", "contentAction": "用口播拆解信息，并用一个例子完成证明", "visualNeed": "根据“列出步骤或清单”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" },
+      { "duration": 30, "purpose": "总结提醒常见误区，推动观众行动", "emotion": "确定感与行动欲", "contentAction": "给出明确结论、步骤或行动引导", "visualNeed": "根据“提醒常见误区”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" }
+    ],
+    "hookRule": "承诺一个具体且可验证的结果",
+    "middleRule": "用数字化步骤降低理解成本",
+    "endingRule": "提醒观众立即开始第一步"
+  },
+  {
+    "id": "director-contrast",
+    "name": "反转对比型",
+    "applicableContent": ["消费", "职场", "生活", "反转叙事"],
+    "audience": "关注消费、职场、生活的用户",
+    "goal": "用清晰叙事传递核心信息并促成记忆",
+    "timeline": [
+      { "duration": 5, "purpose": "展示建立常见预期，快速建立关注", "emotion": "惊讶与顿悟", "contentAction": "用一句口播或画面提出问题、结果或反差", "visualNeed": "真人口播+辅助素材；用与“建立常见预期”对应的强画面开场", "subtitleStyle": "大字钩子，重点词高亮" },
+      { "duration": 25, "purpose": "展开展示意外反差，推进核心信息", "emotion": "惊讶与顿悟", "contentAction": "用口播拆解信息，并用一个例子完成证明", "visualNeed": "根据“展示意外反差”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" },
+      { "duration": 30, "purpose": "总结解释反差背后的原因，推动观众行动", "emotion": "惊讶与顿悟", "contentAction": "给出明确结论、步骤或行动引导", "visualNeed": "根据“解释反差背后的原因”插入案例图片、截图或演示", "subtitleStyle": "重点词放大，按信息分段显示" }
+    ],
+    "hookRule": "先给结果，再制造结果与预期的落差",
+    "middleRule": "用前后对比证明反转不是偶然",
+    "endingRule": "把反转总结成可复用原则"
+  }
+]
