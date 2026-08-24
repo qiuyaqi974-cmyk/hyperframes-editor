@@ -64,7 +64,7 @@ export default function ProductProjectLoader() {
         从商品文件夹生成视频
       </button>
       <button type="button" onClick={exportInsights} className="rounded-md border border-orange-300/40 bg-orange-300/10 px-2.5 py-[5px] text-[11px] font-medium text-orange-100 hover:bg-orange-300/20">
-        导出素材分析结果
+        导出当前AssetInsights
       </button>
     </span>
   );
