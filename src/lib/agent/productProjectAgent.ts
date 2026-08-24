@@ -1,5 +1,5 @@
 import { scanLocalAssets } from '@/lib/agent/localAssetScanner';
-import { analyzeAssets } from '@/lib/agent/assetAnalyzer';
+import { analyzeAssets, type AssetInsight } from '@/lib/agent/assetAnalyzer';
 import { generateProductVideoPlan, type ProductVideoInput } from '@/lib/agent/productVideoAgent';
 import { scenePlanToSnapshot } from '@/lib/agent/scenePlan';
 import type { LLMProvider } from '@/lib/agent/llmProvider';
@@ -20,6 +20,7 @@ export interface ProductProjectInput {
 
 export interface ProductProjectResult {
   assets: Awaited<ReturnType<typeof scanLocalAssets>>;
+  assetInsights: AssetInsight[];
   snapshot: ProjectSnapshot;
   scenePlanPath: string;
 }
@@ -58,7 +59,7 @@ export async function generateProductProject(
   console.log('generated scene plan:', scenePlanPath);
   const snapshot = scenePlanToSnapshot(plan, assets);
   importSnapshot?.(snapshot);
-  return { assets, snapshot, scenePlanPath };
+  return { assets, assetInsights, snapshot, scenePlanPath };
 }
 
 export default generateProductProject;

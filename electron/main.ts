@@ -70,7 +70,7 @@ ipcMain.handle('generate-product-project', async (_event, input: ProductProjectI
         sellingPoints: (productInfo.sellingPoints ?? []).map((point) => String(point ?? '').trim()).filter(Boolean),
       },
     });
-    return { snapshot: result.snapshot };
+    return { snapshot: result.snapshot, assetInsights: result.assetInsights };
   } catch (error) {
     console.error(error);
     console.error('main: product project failed', error);
