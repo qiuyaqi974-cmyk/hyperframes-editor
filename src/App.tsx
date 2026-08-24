@@ -16,6 +16,7 @@ import { planContent } from '@/lib/agent/contentPlanner';
 import ScenePlanLoader from '@/components/agent/ScenePlanLoader';
 import ProductVideoLoader from '@/components/agent/ProductVideoLoader';
 import ProductProjectLoader from '@/components/agent/ProductProjectLoader';
+import ContentCaseLoader from '@/components/agent/ContentCaseLoader';
 
 /**
  * 播放引擎。
@@ -386,6 +387,7 @@ export default function App() {
           <ScenePlanLoader />
           <ProductVideoLoader />
           <ProductProjectLoader />
+          <ContentCaseLoader />
           <button
             onClick={handleMp4Export}
             className="rounded-md bg-emerald-500 px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
