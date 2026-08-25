@@ -6,19 +6,53 @@ import { XunfeiTTS } from '@/lib/tts/xfyun';
 interface Props {
   block: Extract<Block, { type: 'voice' }>;
   frame: EvaluatedFrame;
+  /**
+   * edit = 编辑器内可交互（生成配音、可见音频控件）
+   * view = 播放器 / 导出 HTML 内只读呈现，音频元素隐藏、交给宿主时钟托管
+   */
+  mode?: 'edit' | 'view';
 }
 
 /**
- * VoiceBlock MVP：先把配音文案、音色和时间轴窗口可视化。
- * src 一旦由后续 TTS 流程填入，这里也会提供一个原生音频预览。
+ * VoiceBlock：先把配音文案、音色和时间轴窗口可视化。
+ * src 一旦由 TTS 流程填入，这里也会提供一个原生音频预览。
  */
-export default function VoiceBlock({ block }: Props) {
+export default function VoiceBlock({ block, mode = 'edit' }: Props) {
   const { props } = block;
   const hasAudio = Boolean(props.src);
   const updateProps = useEditorStore((state) => state.updateProps);
   const updateBlock = useEditorStore((state) => state.updateBlock);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (mode === 'view') {
+    return (
+      <div
+        className="flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border border-cyan-300/25 bg-slate-950/90 p-4 text-cyan-50 shadow-lg shadow-cyan-950/20"
+        style={{ opacity: props.opacity }}
+      >
+        <div className="flex items-center gap-2 text-[15px] font-semibold">
+          <span aria-hidden="true" className="text-xl">🎙</span>
+          <span>{block.name}</span>
+          <span className="ml-auto rounded-full bg-cyan-300/15 px-2 py-1 text-[10px] font-medium text-cyan-200">
+            {hasAudio ? '音频已生成' : '音频占位'}
+          </span>
+        </div>
+        <div className="mt-2 min-h-0 flex-1 overflow-hidden whitespace-pre-wrap text-[12px] leading-relaxed text-cyan-50/80">
+          {props.text}
+        </div>
+        <div className="mt-2 flex items-center gap-3 text-[10px] text-cyan-200/65">
+          <span>{props.voiceName}</span>
+          <span>语速 {props.speed}</span>
+          <span>音量 {props.volume}</span>
+        </div>
+        {/* 音频由播放器按时间轴托管同步；导出渲染时同样通过该元素取流 */}
+        {hasAudio && (
+          <audio data-voice-block={block.id} src={props.src ?? undefined} preload="auto" style={{ display: 'none' }} />
+        )}
+      </div>
+    );
+  }
 
   const handleGenerate = async () => {
     if (!props.text.trim() || generating) return;

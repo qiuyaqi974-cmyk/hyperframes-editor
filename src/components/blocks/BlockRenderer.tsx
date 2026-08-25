@@ -1,19 +1,7 @@
 import { useRef } from 'react';
 import type { Block, CanvasConfig } from '@/types';
-import { evaluateBlock } from '@/lib/animation';
-import { resolveBox } from '@/lib/blockFactory';
 import { useEditorStore } from '@/store/editorStore';
-import ImageBlock from './ImageBlock';
-import TextBlock from './TextBlock';
-import VideoBlock from './VideoBlock';
-import SpotlightBlock from './SpotlightBlock';
-import GlassUIBlock from './GlassUIBlock';
-import CardBlock from './CardBlock';
-import CursorBlock from './CursorBlock';
-import ChartBlock from './ChartBlock';
-import ScrollStoryBlock from './ScrollStoryBlock';
-import SubtitleBlock from './SubtitleBlock';
-import VoiceBlock from './VoiceBlock';
+import { evaluateLayout, BlockContent } from '@/render/blockView';
 
 interface Props {
   block: Block;
@@ -27,10 +15,12 @@ interface Props {
 }
 
 /**
- * 统一套壳层：把「时间 → 画面」的求值结果落到 DOM 上。
+ * 编辑器画布的积木壳层：在共享渲染层（blockView）之上，
+ * 只叠加编辑交互——选中、拖拽、缩放。画面本身的求值与内容
+ * 全部来自与导出播放器相同的实现。
  *
  * 每个积木都带上 data-block / data-start / data-duration —— 与 HyperFrames
- * 「DOM 用 data-* 声明时序」的契约同构，将来导出合成 HTML 时可直接沿用。
+ * 「DOM 用 data-* 声明时序」的契约同构。
  */
 export default function BlockRenderer({
   block,
@@ -46,19 +36,15 @@ export default function BlockRenderer({
   const drag = useRef<{ ox: number; oy: number; px: number; py: number } | null>(null);
   const resize = useRef<{ px: number; py: number; width: number; height: number } | null>(null);
 
-  const frame = evaluateBlock(block, time, ghost);
-  const box = resolveBox(block, canvas);
+  const layout = evaluateLayout(block, time, canvas, ghost);
 
-  if (!block.visible) return null;
-  if (!frame.active && !ghost) return null;
+  if (!layout.show) return null;
 
   const isBackground = block.type === 'video' && block.props.background;
-  const outOfWindow = !frame.active;
+  const outOfWindow = !layout.frame.active;
 
   // 文本型积木（Text / Subtitle）按内容自适应高度、不应用 scale
   const isTextLike = block.type === 'text' || block.type === 'subtitle';
-  const propScale = isTextLike ? 1 : (block.props as { scale: number }).scale ?? 1;
-  const rotation = block.type === 'image' ? block.props.rotation : 0;
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -103,7 +89,7 @@ export default function BlockRenderer({
   const beginResize = (e: React.PointerEvent) => {
     e.stopPropagation();
     if (block.locked || isBackground || isTextLike) return;
-    resize.current = { px: e.clientX, py: e.clientY, width: box.width, height: box.height };
+    resize.current = { px: e.clientX, py: e.clientY, width: layout.boxWidth, height: layout.boxHeight };
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
 
@@ -118,32 +104,11 @@ export default function BlockRenderer({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       style={{
-        position: 'absolute',
-        left: box.x,
-        top: box.y,
-        width: isTextLike ? (block.props as { maxWidth: number }).maxWidth : box.width,
-        height: isTextLike ? 'auto' : box.height,
-        zIndex: block.layer + 1,
-        transform: `translate(${frame.dx}px, ${frame.dy}px) scale(${propScale * frame.scale}) rotate(${rotation}deg)`,
-        transformOrigin: 'center center',
-        opacity: outOfWindow ? 0.18 : 1,
+        ...layout.wrapStyle,
         cursor: block.locked || isBackground ? 'default' : 'move',
-        willChange: 'transform, opacity',
       }}
     >
-      {block.type === 'image' && <ImageBlock block={block} frame={frame} />}
-      {block.type === 'text' && <TextBlock block={block} frame={frame} />}
-      {block.type === 'video' && (
-        <VideoBlock block={block} frame={frame} width={box.width} height={box.height} />
-      )}
-      {block.type === 'spotlight' && <SpotlightBlock block={block} frame={frame} />}
-      {block.type === 'glassui' && <GlassUIBlock block={block} frame={frame} />}
-      {block.type === 'card' && <CardBlock block={block} frame={frame} />}
-      {block.type === 'cursor' && <CursorBlock block={block} frame={frame} />}
-      {block.type === 'chart' && <ChartBlock block={block} frame={frame} />}
-      {block.type === 'scrollstory' && <ScrollStoryBlock block={block} frame={frame} />}
-      {block.type === 'subtitle' && <SubtitleBlock block={block} frame={frame} />}
-      {block.type === 'voice' && <VoiceBlock block={block} frame={frame} />}
+      <BlockContent block={block} frame={layout.frame} width={layout.boxWidth} height={layout.boxHeight} />
 
       {selected && (
         <div

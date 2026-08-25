@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EvaluatedFrame, VideoBlockData } from '@/types';
-import { useEditorStore } from '@/store/editorStore';
+import { usePlaybackState } from '@/render/playback';
 
 interface Props {
   block: VideoBlockData;
@@ -19,7 +19,7 @@ interface Props {
  */
 export default function VideoBlock({ block, frame, width, height }: Props) {
   const ref = useRef<HTMLVideoElement>(null);
-  const isPlaying = useEditorStore((s) => s.isPlaying);
+  const isPlaying = usePlaybackState();
   const { props } = block;
   const [resolvedSrc, setResolvedSrc] = useState(props.src);
   const isLocalPath = Boolean(props.src && (/^file:\/\//i.test(props.src) || /^[A-Za-z]:[\\/]/.test(props.src) || /^\\\\/.test(props.src)));

@@ -2,6 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 import { xfyunTTSProxy } from './server/xfyun-tts-proxy';
+import { loadLocalEnv } from './server/loadLocalEnv';
+
+// TTS 代理运行在 dev server 进程里，需要和 Electron 主进程拿到同一份密钥
+loadLocalEnv();
 
 export default defineConfig({
   resolve: {

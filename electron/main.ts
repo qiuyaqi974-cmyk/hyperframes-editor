@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, extname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { runProductProject } from './runtime.mjs';
+import { loadLocalEnv } from '../server/loadLocalEnv';
 
 interface ProductProjectInput {
   folderPath?: string;
@@ -15,17 +16,8 @@ interface ProductProjectInput {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function loadLocalEnv() {
-  try {
-    const envPath = join(__dirname, '..', '.env.local');
-    for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
-      const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
-      if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
-    }
-  } catch {
-    // .env.local 是可选的，也可以直接在启动 Electron 前设置环境变量。
-  }
-}
+// 与 vite.config.ts 共用同一份 .env.local 加载逻辑（模块加载时即生效）
+loadLocalEnv();
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -112,7 +104,6 @@ ipcMain.handle('load-video-asset', async (_event, assetPath: string) => {
 });
 
 void app.whenReady().then(() => {
-  loadLocalEnv();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

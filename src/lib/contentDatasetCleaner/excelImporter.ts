@@ -1,7 +1,12 @@
-import * as XLSX from 'xlsx';
 import type { CleanedContentCase, CleaningStats } from './types';
+import {
+  normalizedText,
+  parseNumber,
+  parseTags,
+  pickValue,
+  readFirstSheetRows,
+} from '@/lib/ingest/spreadsheet';
 
-type Row = Record<string, unknown>;
 const aliases = {
   creator: ['账号', '博主', '作者', 'creator'],
   title: ['视频标题', '标题', 'title'],
@@ -12,33 +17,13 @@ const aliases = {
   tags: ['关键词/标签', '标签', 'tags'],
   script: ['口播文字(你补)', '口播全文', '口播文字', '脚本', 'script'],
   hook: ['前三秒钩子', '钩子', 'hook'],
-  emotion: ['情绪触发点', '情绪', 'emotion'],
+  emotion: ['情绪触发器', '情绪', 'emotion'],
   structure: ['故事结构', '结构', 'structure'],
   conflict: ['冲突', 'conflict'],
   personalNote: ['备注', '个人判断', '我的判断', 'personalNote'],
 } as const;
 
-function value(row: Row, keys: readonly string[]): unknown {
-  const key = Object.keys(row).find((candidate) => keys.includes(candidate.trim()));
-  return key ? row[key] : null;
-}
-
-function text(input: unknown): string | null {
-  if (input == null) return null;
-  const result = String(input).replace(/[\u200b\u00a0]/g, ' ').replace(/\s+/g, ' ').trim();
-  return result || null;
-}
-
-function number(input: unknown): number | null {
-  const parsed = Number(String(input ?? '').replace(/[,，]/g, '').trim());
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function tags(input: unknown): string[] {
-  return (text(input) ?? '').split(/[,，、|#]/).map((tag) => tag.trim()).filter(Boolean);
-}
-
-const AD_WORDS = ['广告', '推广', '合作', '品牌', '旗舰店', '下单', '购买', '优惠', '折扣', '券', '链接', '私信', '直播间', '同款'];
+const AD_WORDS = ['广告', '推广', '合作', '品牌', '旗舰店', '下单', '购买', '优惠', '折扣', '链接', '私信', '直播间', '同款'];
 
 function classifyAd(title: string | null, script: string | null, tagList: string[]) {
   const corpus = [title, script, ...tagList].filter(Boolean).join(' ');
@@ -49,31 +34,29 @@ function classifyAd(title: string | null, script: string | null, tagList: string
 }
 
 export async function cleanContentWorkbook(file: File): Promise<{ cases: CleanedContentCase[]; stats: CleaningStats }> {
-  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = sheet ? XLSX.utils.sheet_to_json<Row>(sheet, { defval: null }) : [];
+  const rows = await readFirstSheetRows(file);
   const cases = rows.map((row, index) => {
-    const title = text(value(row, aliases.title));
-    const script = text(value(row, aliases.script));
-    const tagList = tags(value(row, aliases.tags));
+    const title = normalizedText(pickValue(row, aliases.title));
+    const script = normalizedText(pickValue(row, aliases.script));
+    const tagList = parseTags(pickValue(row, aliases.tags));
     const ad = classifyAd(title, script, tagList);
     return {
       id: `content-case-${Date.now()}-${index + 1}`,
-      creator: text(value(row, aliases.creator)),
+      creator: normalizedText(pickValue(row, aliases.creator)),
       title,
       script,
       metrics: {
-        likes: number(value(row, aliases.likes)),
-        comments: number(value(row, aliases.comments)),
-        shares: number(value(row, aliases.shares)),
-        views: number(value(row, aliases.views)),
+        likes: parseNumber(pickValue(row, aliases.likes)),
+        comments: parseNumber(pickValue(row, aliases.comments)),
+        shares: parseNumber(pickValue(row, aliases.shares)),
+        views: parseNumber(pickValue(row, aliases.views)),
       },
       tags: tagList,
-      hook: text(value(row, aliases.hook)),
-      emotion: text(value(row, aliases.emotion)),
-      structure: text(value(row, aliases.structure)),
-      conflict: text(value(row, aliases.conflict)),
-      personalNote: text(value(row, aliases.personalNote)),
+      hook: normalizedText(pickValue(row, aliases.hook)),
+      emotion: normalizedText(pickValue(row, aliases.emotion)),
+      structure: normalizedText(pickValue(row, aliases.structure)),
+      conflict: normalizedText(pickValue(row, aliases.conflict)),
+      personalNote: normalizedText(pickValue(row, aliases.personalNote)),
       isAdvertisement: ad.isAdvertisement,
       adType: ad.adType,
       usable: Boolean(title && script && script.length >= 20 && ad.adType !== 'pure'),
