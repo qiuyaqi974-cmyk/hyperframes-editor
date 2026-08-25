@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Block } from '@/types';
 import { useDuration, useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { formatTime } from '@/lib/animation';
 import { BLOCK_COLOR } from '@/lib/blockFactory';
 
@@ -17,20 +18,20 @@ export default function Timeline() {
   const [laneW, setLaneW] = useState(800);
 
   const blocks = useEditorStore((s) => s.blocks);
-  const currentTime = useEditorStore((s) => s.currentTime);
-  const isPlaying = useEditorStore((s) => s.isPlaying);
-  const loopPlayback = useEditorStore((s) => s.loopPlayback);
-  const showGhosts = useEditorStore((s) => s.showGhosts);
-  const selectedId = useEditorStore((s) => s.selectedId);
   const scenes = useEditorStore((s) => s.scenes);
   const narration = useEditorStore((s) => s.narration);
-
-  const setTime = useEditorStore((s) => s.setTime);
-  const togglePlay = useEditorStore((s) => s.togglePlay);
-  const toggleLoop = useEditorStore((s) => s.toggleLoop);
-  const toggleGhosts = useEditorStore((s) => s.toggleGhosts);
-  const selectBlock = useEditorStore((s) => s.selectBlock);
   const setTiming = useEditorStore((s) => s.setTiming);
+
+  const currentTime = useUIStore((s) => s.currentTime);
+  const isPlaying = useUIStore((s) => s.isPlaying);
+  const loopPlayback = useUIStore((s) => s.loopPlayback);
+  const showGhosts = useUIStore((s) => s.showGhosts);
+  const selectedId = useUIStore((s) => s.selectedId);
+  const setTime = useUIStore((s) => s.setTime);
+  const togglePlay = useUIStore((s) => s.togglePlay);
+  const toggleLoop = useUIStore((s) => s.toggleLoop);
+  const toggleGhosts = useUIStore((s) => s.toggleGhosts);
+  const selectBlock = useUIStore((s) => s.selectBlock);
 
   const total = useDuration();
   const pxPerSec = laneW / total;

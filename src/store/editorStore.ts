@@ -3,23 +3,12 @@ import type {
   AnimationSpec,
   Asset,
   Block,
+  BlockPropsPatch,
   BlockType,
   CanvasConfig,
-  CardProps,
-  CursorProps,
-  ChartProps,
-  GlassUIProps,
-  ImageProps,
-  Position,
   ProjectSnapshot,
   NarrationTrack,
   Scene,
-  ScrollStoryProps,
-  SpotlightProps,
-  SubtitleProps,
-  TextProps,
-  VideoProps,
-  VoiceProps,
   ThemeId,
 } from '@/types';
 import {
@@ -37,12 +26,19 @@ import {
   createVoiceBlock,
 } from '@/lib/blockFactory';
 import { THEMES, styleBlockForTheme } from '@/lib/themes';
-import { compositionDuration } from '@/lib/animation';
 import { parseSrt } from '@/lib/srt';
 import { matchAssetsToScenes } from '@/lib/autoMatch';
+import { useUIStore } from './uiStore';
+import { projectDuration } from './projectDuration';
 
-interface EditorState {
-  /* ---- 文档状态 ---- */
+/**
+ * 文档 store：只保存「工程是什么」——可序列化、可导出的内容。
+ *
+ * 播放头、选择、播放状态等编辑器 UI 状态在 uiStore。
+ * 两者分离后，自动保存 / JSON 导出只订阅本 store，
+ * 不会被播放头每帧更新搅动。
+ */
+interface EditorDocumentState {
   canvas: CanvasConfig;
   blocks: Block[];
   assets: Asset[];
@@ -50,14 +46,6 @@ interface EditorState {
   narration: NarrationTrack | null;
   scenes: Scene[];
   themeId: ThemeId;
-
-  /* ---- 编辑器状态 ---- */
-  selectedId: string | null;
-  currentTime: number;
-  isPlaying: boolean;
-  loopPlayback: boolean;
-  /** 超出时间窗口的积木仍以幽灵态显示，方便摆位 */
-  showGhosts: boolean;
 
   /* ---- 素材 ---- */
   addAsset: (asset: Asset) => void;
@@ -72,41 +60,18 @@ interface EditorState {
   addBlockFromAsset: (asset: Asset) => string;
   duplicateBlock: (id: string) => void;
   removeBlock: (id: string) => void;
-  selectBlock: (id: string | null) => void;
 
   updateBlock: (id: string, patch: Partial<Omit<Block, 'props' | 'animation'>>) => void;
-  updateProps: (
-    id: string,
-    patch: Partial<
-      ImageProps &
-        TextProps &
-        VideoProps &
-        SpotlightProps &
-        GlassUIProps &
-        CardProps &
-        CursorProps &
-        ChartProps &
-        ScrollStoryProps &
-        SubtitleProps &
-        VoiceProps
-    >,
-  ) => void;
+  /** 类型安全 + 运行时字段过滤的 props 局部更新 */
+  updateProps: (id: string, patch: BlockPropsPatch) => void;
   updateAnimation: (id: string, patch: Partial<AnimationSpec>) => void;
-  moveBlock: (id: string, position: Position) => void;
+  moveBlock: (id: string, position: { x: number; y: number }) => void;
   setTiming: (id: string, start: number, duration: number) => void;
   reorderLayer: (id: string, delta: number) => void;
   /** 按给定顺序（顶部优先 = layer 高）整体重排层级，用于图层面板拖拽排序 */
   setLayerOrder: (orderedIdsTopToBottom: string[]) => void;
   toggleVisible: (id: string) => void;
   toggleLocked: (id: string) => void;
-
-  /* ---- 播放头 ---- */
-  setTime: (t: number) => void;
-  play: () => void;
-  pause: () => void;
-  togglePlay: () => void;
-  toggleLoop: () => void;
-  toggleGhosts: () => void;
 
   /* ---- 其它 ---- */
   setCanvas: (patch: Partial<CanvasConfig>) => void;
@@ -125,13 +90,7 @@ interface EditorState {
 const nextLayer = (blocks: Block[]) =>
   blocks.reduce((max, b) => Math.max(max, b.layer), -1) + 1;
 
-const projectDuration = (state: Pick<EditorState, 'blocks' | 'narration' | 'scenes'>) => {
-  const narrationEnd = state.narration?.duration ?? 0;
-  const sceneEnd = state.scenes.reduce((max, scene) => Math.max(max, scene.end), 0);
-  return Math.max(compositionDuration(state.blocks), narrationEnd, sceneEnd, 6);
-};
-
-export const useEditorStore = create<EditorState>((set, get) => ({
+export const useEditorStore = create<EditorDocumentState>((set, get) => ({
   canvas: { ...CANVAS_DEFAULT },
   blocks: [],
   assets: [],
@@ -140,18 +99,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   scenes: [],
   themeId: 'midnight',
 
-  selectedId: null,
-  currentTime: 0,
-  isPlaying: false,
-  loopPlayback: true,
-  showGhosts: true,
-
   addAsset: (asset) => set((s) => ({ assets: [...s.assets, asset] })),
 
   removeAsset: (id) => set((s) => ({ assets: s.assets.filter((a) => a.id !== id) })),
 
   bindAssetToSelectedImage: (asset) => {
-    const { selectedId, blocks } = get();
+    const selectedId = useUIStore.getState().selectedId;
+    const { blocks } = get();
     const selected = blocks.find((block) => block.id === selectedId);
     if (!selected || selected.type !== 'image' || asset.kind !== 'image') return false;
     set((s) => ({
@@ -185,15 +139,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       block.sceneId = scene.id;
       return block;
     });
-    set({ scenes, blocks: [...manualBlocks, ...generated], selectedId: generated[0]?.id ?? null });
+    set({ scenes, blocks: [...manualBlocks, ...generated] });
+    useUIStore.getState().selectBlock(generated[0]?.id ?? null);
     return scenes.length;
   },
 
   addBlock: (type, asset = null) => {
-    const { blocks, canvas, currentTime, themeId } = get();
+    const { blocks, canvas, themeId } = get();
     const layer = nextLayer(blocks);
     // 新积木从播放头位置入场，符合"边看边搭"的直觉
-    const start = Math.round(currentTime * 10) / 10;
+    const start = Math.round(useUIStore.getState().currentTime * 10) / 10;
     let block: Block;
     if (type === 'image') block = createImageBlock(asset, canvas, layer, start);
     else if (type === 'video') block = createVideoBlock(asset, canvas, layer, start);
@@ -208,7 +163,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     else block = createTextBlock(canvas, layer, start);
 
     block = styleBlockForTheme(block, THEMES[themeId]);
-    set({ blocks: [...blocks, block], selectedId: block.id });
+    set({ blocks: [...blocks, block] });
+    useUIStore.getState().selectBlock(block.id);
     return block.id;
   },
 
@@ -234,7 +190,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       block.animation = { ...block.animation, duration: Math.min(0.35, scene.duration / 3) };
       return block;
     });
-    set({ blocks: [...kept, ...generated], selectedId: generated[0]?.id ?? null, currentTime: generated[0]?.start ?? 0 });
+    set({ blocks: [...kept, ...generated] });
+    const ui = useUIStore.getState();
+    ui.selectBlock(generated[0]?.id ?? null);
+    ui.setTime(generated[0]?.start ?? 0);
     return { matched: generated.length, unmatchedScenes: result.unmatchedScenes.length, unusedAssets: result.unusedAssets.length };
   },
 
@@ -251,16 +210,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       props: { ...src.props } as Block['props'],
       animation: { ...src.animation },
     } as Block;
-    set({ blocks: [...blocks, copy], selectedId: copy.id });
+    set({ blocks: [...blocks, copy] });
+    useUIStore.getState().selectBlock(copy.id);
   },
 
-  removeBlock: (id) =>
-    set((s) => ({
-      blocks: s.blocks.filter((b) => b.id !== id),
-      selectedId: s.selectedId === id ? null : s.selectedId,
-    })),
-
-  selectBlock: (id) => set({ selectedId: id }),
+  removeBlock: (id) => {
+    set((s) => ({ blocks: s.blocks.filter((b) => b.id !== id) }));
+    if (useUIStore.getState().selectedId === id) {
+      useUIStore.getState().selectBlock(null);
+    }
+  },
 
   updateBlock: (id, patch) =>
     set((s) => ({
@@ -269,9 +228,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   updateProps: (id, patch) =>
     set((s) => ({
-      blocks: s.blocks.map((b) =>
-        b.id === id ? ({ ...b, props: { ...b.props, ...patch } } as Block) : b,
-      ),
+      blocks: s.blocks.map((b) => {
+        if (b.id !== id) return b;
+        // 运行时防线：只接受目标积木自身 props 里存在的字段，
+        // 防止跨类型补丁把脏字段写进文档（如给 text 积木写 paddingX）。
+        const known = new Set(Object.keys(b.props));
+        const entries = Object.entries(patch).filter(([key]) => known.has(key));
+        const dropped = Object.keys(patch).filter((key) => !known.has(key));
+        if (dropped.length) {
+          console.warn(`updateProps: 忽略不属于 ${b.type} 积木的字段 — ${dropped.join(', ')}`);
+        }
+        if (!entries.length) return b;
+        return { ...b, props: { ...b.props, ...Object.fromEntries(entries) } } as Block;
+      }),
     })),
 
   updateAnimation: (id, patch) =>
@@ -328,23 +297,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       blocks: s.blocks.map((b) => (b.id === id ? { ...b, locked: !b.locked } : b)),
     })),
 
-  setTime: (t) => set({ currentTime: Math.max(0, t) }),
-
-  play: () => {
-    const state = get();
-    const { currentTime } = state;
-    const total = projectDuration(state);
-    set({ isPlaying: true, currentTime: currentTime >= total - 0.01 ? 0 : currentTime });
-  },
-
-  pause: () => set({ isPlaying: false }),
-
-  togglePlay: () => (get().isPlaying ? get().pause() : get().play()),
-
-  toggleLoop: () => set((s) => ({ loopPlayback: !s.loopPlayback })),
-
-  toggleGhosts: () => set((s) => ({ showGhosts: !s.showGhosts })),
-
   setCanvas: (patch) => set((s) => ({ canvas: { ...s.canvas, ...patch } })),
 
   setProjectName: (projectName) => set({ projectName }),
@@ -358,7 +310,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }));
   },
 
-  clearAll: () => set({ blocks: [], selectedId: null, currentTime: 0, isPlaying: false }),
+  clearAll: () => {
+    set({ blocks: [] });
+    const ui = useUIStore.getState();
+    ui.selectBlock(null);
+    ui.setTime(0);
+    ui.pause();
+  },
 
   loadDemo: () => {
     const { canvas, themeId } = get();
@@ -418,7 +376,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     const theme = THEMES[themeId];
     const demo = [title, sub, card, chart, cursor].map((block) => styleBlockForTheme(block, theme));
-    set({ blocks: demo, selectedId: title.id, currentTime: 0 });
+    set({ blocks: demo });
+    const ui = useUIStore.getState();
+    ui.selectBlock(title.id);
+    ui.setTime(0);
   },
 
   exportSnapshot: () => {
@@ -463,10 +424,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       narration: snap.narration ?? null,
       scenes: Array.isArray(snap.scenes) ? snap.scenes : [],
       themeId: snap.themeId && THEMES[snap.themeId] ? snap.themeId : 'midnight',
-      selectedId: null,
-      currentTime: 0,
-      isPlaying: false,
     });
+    const ui = useUIStore.getState();
+    ui.selectBlock(null);
+    ui.setTime(0);
+    ui.pause();
   },
 
   importProject: (json) => {
@@ -480,10 +442,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 }));
 
-/* ---------- selectors ---------- */
+/* ---------- 跨 store 选择器 ---------- */
 
 export const useSelectedBlock = (): Block | null => {
-  const id = useEditorStore((s) => s.selectedId);
+  const id = useUIStore((s) => s.selectedId);
   const blocks = useEditorStore((s) => s.blocks);
   return blocks.find((b) => b.id === id) ?? null;
 };

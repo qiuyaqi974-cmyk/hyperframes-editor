@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEditorStore } from '@/store/editorStore';
-import { compositionDuration } from '@/lib/animation';
+import { useUIStore } from '@/store/uiStore';
+import { projectDuration } from '@/store/projectDuration';
 import BlockLibrary from '@/components/sidebar/BlockLibrary';
 import EditorCanvas from '@/components/canvas/EditorCanvas';
 import PropertyPanel from '@/components/inspector/PropertyPanel';
@@ -17,12 +18,12 @@ import AgentMenu from '@/components/agent/AgentMenu';
 /**
  * 播放引擎。
  *
- * 只做一件事：把真实时间推进到 store 的 currentTime。
+ * 只做一件事：把真实时间推进到 uiStore 的 currentTime。
  * 画面怎么长由求值器决定——播放和渲染彻底解耦，
  * 所以「播放」和「手动拖播放头」走的是完全相同的渲染路径。
  */
 function usePlaybackEngine() {
-  const isPlaying = useEditorStore((s) => s.isPlaying);
+  const isPlaying = useUIStore((s) => s.isPlaying);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -33,20 +34,20 @@ function usePlaybackEngine() {
       const dt = (now - last) / 1000;
       last = now;
 
-      const st = useEditorStore.getState();
-      const sceneEnd = st.scenes.reduce((max, scene) => Math.max(max, scene.end), 0);
-      const total = Math.max(compositionDuration(st.blocks), st.narration?.duration ?? 0, sceneEnd);
-      let t = st.currentTime + dt;
+      const ui = useUIStore.getState();
+      const doc = useEditorStore.getState();
+      const total = projectDuration(doc);
+      let t = ui.currentTime + dt;
 
       if (t >= total) {
-        if (st.loopPlayback) {
+        if (ui.loopPlayback) {
           t = total > 0 ? t % total : 0;
         } else {
-          st.pause();
+          ui.pause();
           t = total;
         }
       }
-      st.setTime(t);
+      ui.setTime(t);
       raf = requestAnimationFrame(tick);
     };
 
@@ -67,7 +68,7 @@ function useNarrationEngine() {
   }, [narration]);
 
   useEffect(() => {
-    return useEditorStore.subscribe((state) => {
+    return useUIStore.subscribe((state) => {
       const el = audio.current;
       if (!el) return;
       if (Math.abs(el.currentTime - state.currentTime) > (state.isPlaying ? 0.3 : 0.04)) {
@@ -89,24 +90,25 @@ function useNarrationEngine() {
 /** 让已生成的 VoiceBlock 跟随编辑器播放头，不让音频自行脱离时间轴播放。 */
 function useVoiceAudioEngine() {
   useEffect(() => {
-    return useEditorStore.subscribe((state) => {
-      for (const block of state.blocks) {
+    return useUIStore.subscribe((ui) => {
+      const { blocks } = useEditorStore.getState();
+      for (const block of blocks) {
         if (block.type !== 'voice' || !block.props.src) continue;
         const audio = document.querySelector<HTMLAudioElement>(
           `audio[data-voice-block="${block.id}"]`,
         );
         if (!audio) continue;
         const duration = Math.max(block.duration, block.props.duration || 0);
-        const active = state.currentTime >= block.start && state.currentTime <= block.start + duration;
-        const localTime = Math.max(0, state.currentTime - block.start);
-        if (Math.abs(audio.currentTime - localTime) > (state.isPlaying ? 0.3 : 0.04)) {
+        const active = ui.currentTime >= block.start && ui.currentTime <= block.start + duration;
+        const localTime = Math.max(0, ui.currentTime - block.start);
+        if (Math.abs(audio.currentTime - localTime) > (ui.isPlaying ? 0.3 : 0.04)) {
           try {
             audio.currentTime = localTime;
           } catch {
             // 元数据尚未就绪时，下一次播放头变化会继续同步。
           }
         }
-        if (state.isPlaying && active) {
+        if (ui.isPlaying && active) {
           if (audio.paused) void audio.play().catch(() => undefined);
         } else if (!audio.paused) {
           audio.pause();
@@ -131,6 +133,7 @@ function useAutosave() {
           useEditorStore.getState().importSnapshot(snapshot);
         }
         setStatus(snapshot ? '已恢复并自动保存' : '自动保存已开启');
+        // 只订阅文档 store：播放头每帧变化不会触发保存防抖
         unsubscribe = useEditorStore.subscribe(() => {
           window.clearTimeout(timer);
           setStatus('保存中…');
@@ -161,23 +164,24 @@ function useShortcuts() {
         el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
       if (typing) return;
 
-      const st = useEditorStore.getState();
+      const ui = useUIStore.getState();
+      const doc = useEditorStore.getState();
 
       if (e.code === 'Space') {
         e.preventDefault();
-        st.togglePlay();
+        ui.togglePlay();
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && st.selectedId) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && ui.selectedId) {
         e.preventDefault();
-        st.removeBlock(st.selectedId);
+        doc.removeBlock(ui.selectedId);
       }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && st.selectedId) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && ui.selectedId) {
         e.preventDefault();
-        st.duplicateBlock(st.selectedId);
+        doc.duplicateBlock(ui.selectedId);
       }
-      if (e.key === 'Escape') st.selectBlock(null);
-      if (e.key === 'ArrowLeft') st.setTime(Math.max(0, st.currentTime - (e.shiftKey ? 1 : 1 / 30)));
-      if (e.key === 'ArrowRight') st.setTime(st.currentTime + (e.shiftKey ? 1 : 1 / 30));
+      if (e.key === 'Escape') ui.selectBlock(null);
+      if (e.key === 'ArrowLeft') ui.setTime(Math.max(0, ui.currentTime - (e.shiftKey ? 1 : 1 / 30)));
+      if (e.key === 'ArrowRight') ui.setTime(ui.currentTime + (e.shiftKey ? 1 : 1 / 30));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -186,7 +190,7 @@ function useShortcuts() {
 
 /** 画布需要知道播放状态（VideoBlock 等媒体积木由该上下文驱动）。 */
 function CanvasWithPlayback() {
-  const isPlaying = useEditorStore((s) => s.isPlaying);
+  const isPlaying = useUIStore((s) => s.isPlaying);
   return (
     <PlaybackProvider isPlaying={isPlaying}>
       <EditorCanvas />

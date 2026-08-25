@@ -1,5 +1,6 @@
 import type { AnimationType, Block, EasingName, SlideDirection } from '@/types';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { EASINGS } from '@/lib/animation';
 import { NumberField, Row, Section, Segmented, SliderField } from '@/components/ui/Field';
 
@@ -51,7 +52,7 @@ function EasingCurve({ easing }: { easing: EasingName }) {
 
 export default function AnimationSection({ block }: { block: Block }) {
   const updateAnimation = useEditorStore((s) => s.updateAnimation);
-  const setTime = useEditorStore((s) => s.setTime);
+  const setTime = useUIStore((s) => s.setTime);
   const anim = block.animation;
 
   return (

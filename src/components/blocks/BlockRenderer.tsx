@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { Block, CanvasConfig } from '@/types';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { evaluateLayout, BlockContent } from '@/render/blockView';
 
 interface Props {
@@ -30,7 +31,7 @@ export default function BlockRenderer({
   selected,
   ghost,
 }: Props) {
-  const selectBlock = useEditorStore((s) => s.selectBlock);
+  const selectBlock = useUIStore((s) => s.selectBlock);
   const moveBlock = useEditorStore((s) => s.moveBlock);
   const updateProps = useEditorStore((s) => s.updateProps);
   const drag = useRef<{ ox: number; oy: number; px: number; py: number } | null>(null);

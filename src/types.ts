@@ -351,6 +351,20 @@ export type Block =
   | SubtitleBlockData
   | VoiceBlockData;
 
+/** 取指定积木类型的 props 类型 */
+export type PropsOf<T extends BlockType> = Extract<Block, { type: T }>['props'];
+
+/**
+ * 类型安全的 props 局部更新。
+ *
+ * 旧签名是 11 种 props 的交叉类型（任何积木可写任何字段）；
+ * 现在是「各类型 Partial 的联合」——补丁必须至少能匹配一种积木的
+ * props，配合 store 里的运行时按键过滤，杜绝跨类型写脏数据。
+ */
+export type BlockPropsPatch = {
+  [K in BlockType]: Partial<PropsOf<K>>;
+}[BlockType];
+
 /* ------------------------------------------------------------------ */
 /* 素材库                                                              */
 /* ------------------------------------------------------------------ */

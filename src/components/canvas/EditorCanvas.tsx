@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { fileToAsset } from '@/lib/assets';
 import { formatTime } from '@/lib/animation';
 import BlockRenderer from '@/components/blocks/BlockRenderer';
@@ -17,13 +18,14 @@ export default function EditorCanvas() {
 
   const canvas = useEditorStore((s) => s.canvas);
   const blocks = useEditorStore((s) => s.blocks);
-  const currentTime = useEditorStore((s) => s.currentTime);
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const showGhosts = useEditorStore((s) => s.showGhosts);
-  const isPlaying = useEditorStore((s) => s.isPlaying);
-  const selectBlock = useEditorStore((s) => s.selectBlock);
   const addAsset = useEditorStore((s) => s.addAsset);
   const addBlockFromAsset = useEditorStore((s) => s.addBlockFromAsset);
+
+  const currentTime = useUIStore((s) => s.currentTime);
+  const selectedId = useUIStore((s) => s.selectedId);
+  const showGhosts = useUIStore((s) => s.showGhosts);
+  const isPlaying = useUIStore((s) => s.isPlaying);
+  const selectBlock = useUIStore((s) => s.selectBlock);
 
   /* 自适应缩放 */
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEditorStore } from '@/store/editorStore';
+import { useUIStore } from '@/store/uiStore';
 import { BLOCK_COLOR } from '@/lib/blockFactory';
 
 /**
@@ -13,12 +14,12 @@ import { BLOCK_COLOR } from '@/lib/blockFactory';
  */
 export default function LayersPanel() {
   const blocks = useEditorStore((s) => s.blocks);
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const selectBlock = useEditorStore((s) => s.selectBlock);
   const setLayerOrder = useEditorStore((s) => s.setLayerOrder);
   const toggleVisible = useEditorStore((s) => s.toggleVisible);
   const toggleLocked = useEditorStore((s) => s.toggleLocked);
   const removeBlock = useEditorStore((s) => s.removeBlock);
+  const selectedId = useUIStore((s) => s.selectedId);
+  const selectBlock = useUIStore((s) => s.selectBlock);
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
