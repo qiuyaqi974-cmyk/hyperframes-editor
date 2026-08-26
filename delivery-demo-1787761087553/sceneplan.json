@@ -1,0 +1,26 @@
+{
+  "projectId": "hyperframes-demo-001",
+  "version": 1,
+  "blocks": [
+    {
+      "id": "blk-001",
+      "type": "text",
+      "startTime": 0,
+      "duration": 5
+    },
+    {
+      "id": "blk-002",
+      "type": "image",
+      "startTime": 5,
+      "duration": 8,
+      "assetId": "img-001"
+    },
+    {
+      "id": "blk-003",
+      "type": "voice",
+      "startTime": 13,
+      "duration": 12,
+      "assetId": "aud-001"
+    }
+  ]
+}
