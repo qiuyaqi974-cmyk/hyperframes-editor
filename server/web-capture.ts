@@ -1,6 +1,9 @@
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 
 /**
  * 网页截图采集服务（移植自 Remotion 生产线的 capture-*.mjs）。
@@ -23,9 +26,26 @@ export interface CaptureRequest {
   viewportHeight?: number;
   /** deviceScaleFactor，默认 1.5（保证截图清晰度） */
   deviceScaleFactor?: number;
+  /** 连拍录屏：对当前页面（可先用 keyword 定位）连续截帧合成 MP4 */
+  motion?: {
+    /** 录制秒数，1-15，默认 4 */
+    seconds?: number;
+    /** 帧率，2-15，默认 10（与 Remotion 生产线的连拍参数同量级） */
+    fps?: number;
+    /** 录制前先滚动到该关键词位置（如在线 Demo 区域） */
+    keyword?: string;
+  };
 }
 
 export interface CapturedImage {
+  name: string;
+  dataUrl: string;
+  width: number;
+  height: number;
+  size: number;
+}
+
+export interface CapturedVideo {
   name: string;
   dataUrl: string;
   width: number;
@@ -70,7 +90,78 @@ function json(res: any, status: number, payload: unknown) {
   res.end(JSON.stringify(payload));
 }
 
-export async function captureWeb(request: CaptureRequest): Promise<CapturedImage[]> {
+/** 连拍帧 → MP4（yuv420p 需要偶数宽高） */
+function encodeFramesToMp4(framesDir: string, fps: number, count: number): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const outPath = path.join(framesDir, '..', 'motion.mp4');
+    const ffmpeg = spawn(ffmpegInstaller.path, [
+      '-y',
+      '-framerate', String(fps),
+      '-i', path.join(framesDir, 'frame-%03d.jpg'),
+      '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p',
+      '-c:v', 'libx264', '-crf', '20', '-preset', 'veryfast',
+      '-movflags', '+faststart',
+      outPath,
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+    ffmpeg.stderr.on('data', (chunk) => { stderr += chunk; });
+    ffmpeg.on('close', (code) => {
+      if (code === 0 && fs.existsSync(outPath)) resolve(fs.readFileSync(outPath));
+      else reject(new Error(`连拍合成 MP4 失败（code ${code}）：${stderr.slice(-400)}`));
+    });
+    ffmpeg.on('error', reject);
+    void count;
+  });
+}
+
+/** 录屏：连拍 JPEG 帧再合成 MP4（deviceScaleFactor 固定 1，控制体积） */
+async function recordMotion(
+  page: any,
+  motion: NonNullable<CaptureRequest['motion']>,
+  width: number,
+  height: number,
+): Promise<CapturedVideo | null> {
+  const seconds = Math.min(15, Math.max(1, Number(motion.seconds) || 4));
+  const fps = Math.min(15, Math.max(2, Number(motion.fps) || 10));
+  const intervalMs = Math.round(1000 / fps);
+  const totalFrames = seconds * fps;
+
+  if (motion.keyword) {
+    await page.evaluate((needle: string) => {
+      const elements = [...document.querySelectorAll('h1,h2,h3,p,span,strong,li,video,canvas')];
+      const target = elements.find((element) => element.textContent?.trim().includes(needle));
+      target?.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }, motion.keyword);
+    await page.waitForTimeout(600);
+  }
+
+  const framesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hf-motion-'));
+  try {
+    for (let i = 0; i < totalFrames; i += 1) {
+      const frame = await page.screenshot({
+        type: 'jpeg',
+        quality: 88,
+        path: path.join(framesDir, `frame-${String(i).padStart(3, '0')}.jpg`),
+      });
+      void frame;
+      await page.waitForTimeout(intervalMs);
+    }
+    const mp4 = await encodeFramesToMp4(framesDir, fps, totalFrames);
+    return {
+      name: 'web-motion.mp4',
+      dataUrl: `data:video/mp4;base64,${mp4.toString('base64')}`,
+      width,
+      height,
+      size: mp4.length,
+    };
+  } finally {
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+}
+
+export async function captureWeb(
+  request: CaptureRequest,
+): Promise<{ assets: CapturedImage[]; videos: CapturedVideo[] }> {
   const url = String(request.url || '').trim();
   if (!/^(https?:\/\/|file:\/\/)/i.test(url)) {
     throw new Error('url 必须是 http(s) 或 file 地址');
@@ -93,6 +184,7 @@ export async function captureWeb(request: CaptureRequest): Promise<CapturedImage
   });
 
   const results: CapturedImage[] = [];
+  const videos: CapturedVideo[] = [];
   try {
     const context = await browser.newContext({
       viewport: { width, height },
@@ -156,12 +248,18 @@ export async function captureWeb(request: CaptureRequest): Promise<CapturedImage
       await page.waitForTimeout(600);
       await takeShot(`web-kw-${i + 1}.png`);
     }
+
+    // 连拍录屏：网页里的动态演示（在线 Demo、动画）变成 MP4 素材
+    if (request.motion) {
+      const video = await recordMotion(page, request.motion, width, height);
+      if (video) videos.push(video);
+    }
   } finally {
     await browser.close();
   }
 
-  if (!results.length) throw new Error('没有采集到任何截图。');
-  return results;
+  if (!results.length && !videos.length) throw new Error('没有采集到任何素材。');
+  return { assets: results, videos };
 }
 
 /** connect 风格 handler：POST /api/capture/web */
@@ -181,8 +279,8 @@ export function webCaptureHandler(req: any, res: any, next: () => void) {
         return;
       }
       try {
-        const assets = await captureWeb(request);
-        json(res, 200, { assets });
+        const { assets, videos } = await captureWeb(request);
+        json(res, 200, { assets, videos });
       } catch (error) {
         json(res, 502, { error: error instanceof Error ? error.message : String(error) });
       }

@@ -44,7 +44,11 @@ try {
   const response = await fetch('http://localhost:5178/api/capture/web', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ url: `file:///${pagePath.split(path.sep).join('/')}`, keywords: ['部署指南', '不存在的关键词'] }),
+    body: JSON.stringify({
+      url: `file:///${pagePath.split(path.sep).join('/')}`,
+      keywords: ['部署指南', '不存在的关键词'],
+      motion: { seconds: 2, fps: 5 },
+    }),
   });
   const payload = await response.json();
   console.log('status:', response.status);
@@ -61,6 +65,12 @@ try {
   if (assets.some((a) => a.name.includes('不存在')) || assets.filter((a) => a.name.startsWith('web-kw')).length !== 1) {
     throw new Error('不存在的关键词不应产出截图');
   }
+  const videos = payload.videos || [];
+  const motion = videos.find((v) => v.name === 'web-motion.mp4');
+  if (!motion || motion.size < 1024 || !motion.dataUrl.startsWith('data:video/mp4;base64,')) {
+    throw new Error('连拍录屏 MP4 缺失或无效');
+  }
+  console.log(`motion: web-motion.mp4 ${(motion.size / 1024).toFixed(0)}KB ${motion.width}x${motion.height}`);
   console.log('WEB CAPTURE TEST OK');
 } catch (error) {
   failed = true;
