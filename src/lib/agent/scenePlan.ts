@@ -64,9 +64,6 @@ function makeBlock(
     block.props.body = '';
   } else {
     const asset = plan.assetId ? assets.find((item) => item.id === plan.assetId) ?? null : null;
-    console.log('image block:', plan.visualPrompt ?? '');
-    console.log('assetHint:', plan.assetHint ?? '');
-    console.log('assetId:', plan.assetId ?? null);
     block = createImageBlock(asset, canvas, layer, start);
     block.name = plan.content || '图片占位';
     if (plan.visualPrompt) block.props.visualPrompt = plan.visualPrompt;
@@ -116,7 +113,8 @@ export function scenePlanToSnapshot(plan: ScenePlan, assets: Asset[] = []): Proj
     projectName: plan.projectName || '未命名场景工程',
     canvas,
     blocks,
-    assets: [],
+    // 素材库必须随快照走：图片块的 assetId 引用、后续 JSON/HTML 复用都依赖它
+    assets,
     narration: null,
     scenes,
     updatedAt: new Date().toISOString(),

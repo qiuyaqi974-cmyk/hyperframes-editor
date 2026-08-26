@@ -13,6 +13,7 @@ import DirectorAgentLoader from './DirectorAgentLoader';
 import DirectorPlanAdapterLoader from './DirectorPlanAdapterLoader';
 import AssetResolverLoader from './AssetResolverLoader';
 import VoiceoverPipelineLoader from './VoiceoverPipelineLoader';
+import WebCaptureLoader from './WebCaptureLoader';
 
 /**
  * AI 助手菜单：把所有 Agent 能力收进一个下拉面板。
@@ -42,7 +43,10 @@ const GROUPS: { label: string; items: React.ReactNode[] }[] = [
   },
   {
     label: '口播生产线',
-    items: [<VoiceoverPipelineLoader key="voiceover" />],
+    items: [
+      <VoiceoverPipelineLoader key="voiceover" />,
+      <WebCaptureLoader key="web-capture" />,
+    ],
   },
   {
     label: '导演与模板',

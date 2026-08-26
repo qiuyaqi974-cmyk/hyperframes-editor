@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 import { xfyunTTSProxy } from './server/xfyun-tts-proxy';
+import { webCaptureHandler } from './server/web-capture';
 import { loadLocalEnv } from './server/loadLocalEnv';
 
 // TTS 代理运行在 dev server 进程里，需要和 Electron 主进程拿到同一份密钥
@@ -25,6 +26,7 @@ export default defineConfig({
       name: 'local-xfyun-tts-proxy',
       configureServer(server) {
         server.middlewares.use('/api/tts/xunfei', xfyunTTSProxy);
+        server.middlewares.use('/api/capture/web', webCaptureHandler);
       },
     },
   ],
