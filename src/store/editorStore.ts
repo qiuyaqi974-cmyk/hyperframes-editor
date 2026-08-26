@@ -28,6 +28,7 @@ import {
 import { THEMES, styleBlockForTheme } from '@/lib/themes';
 import { parseSrt } from '@/lib/srt';
 import { matchAssetsToScenes } from '@/lib/autoMatch';
+import { synthesizeScript, type VoiceoverOptions } from '@/lib/pipeline/voiceover';
 import { useUIStore } from './uiStore';
 import { projectDuration } from './projectDuration';
 
@@ -53,6 +54,8 @@ interface EditorDocumentState {
   bindAssetToSelectedImage: (asset: Asset) => boolean;
   setNarration: (track: NarrationTrack | null) => void;
   importSrt: (text: string) => number;
+  /** 口播生产线：整篇口播稿 → 逐句 TTS → 配音块 + 字幕 + 场景轨（替换旧 pipeline/srt 内容） */
+  importVoiceoverScript: (script: string, options?: VoiceoverOptions) => Promise<number>;
   autoMatchAssets: () => { matched: number; unmatchedScenes: number; unusedAssets: number };
 
   /* ---- 积木增删改 ---- */
@@ -142,6 +145,20 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
     set({ scenes, blocks: [...manualBlocks, ...generated] });
     useUIStore.getState().selectBlock(generated[0]?.id ?? null);
     return scenes.length;
+  },
+
+  importVoiceoverScript: async (script, options) => {
+    const { canvas } = get();
+    const generated = await synthesizeScript(script, canvas, options);
+    // 与 importSrt 同一替换语义：口播轨道（pipeline 配音块 + srt 字幕）整体重建
+    const kept = get().blocks.filter(
+      (block) => block.source !== 'pipeline' && block.source !== 'srt',
+    );
+    set({ scenes: generated.scenes, blocks: [...kept, ...generated.blocks] });
+    const ui = useUIStore.getState();
+    ui.selectBlock(generated.blocks[0]?.id ?? null);
+    ui.setTime(0);
+    return generated.scenes.length;
   },
 
   addBlock: (type, asset = null) => {

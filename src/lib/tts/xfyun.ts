@@ -7,7 +7,7 @@ import type { TTSConfig, TTSProvider, TTSResult } from './index';
  * 静态部署 / preview 场景可通过 VITE_TTS_BASE_URL 指向独立 TTS 服务
  * （`npm run server:tts`，见 server/tts-server.ts）。
  */
-const endpoint = `${import.meta.env.VITE_TTS_BASE_URL ?? ''}/api/tts/xunfei`;
+const endpoint = `${import.meta.env?.VITE_TTS_BASE_URL ?? ''}/api/tts/xunfei`;
 
 export class XunfeiTTS implements TTSProvider {
   async synthesize(text: string, config: TTSConfig): Promise<TTSResult> {

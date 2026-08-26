@@ -24,14 +24,14 @@ function browserPath() {
   return candidates.find((p) => p && fs.existsSync(p));
 }
 
-function writeNarration(dataUrl, dir) {
+function writeDataUrlAudio(dataUrl, dir, name) {
   if (!dataUrl?.startsWith('data:')) return null;
   const comma = dataUrl.indexOf(',');
   const header = dataUrl.slice(5, comma);
   const body = dataUrl.slice(comma + 1);
   const mime = header.split(';')[0];
   const ext = mime.includes('mpeg') ? 'mp3' : mime.includes('wav') ? 'wav' : mime.includes('ogg') ? 'ogg' : 'm4a';
-  const target = path.join(dir, `narration.${ext}`);
+  const target = path.join(dir, `${name}.${ext}`);
   fs.writeFileSync(target, header.includes(';base64') ? Buffer.from(body, 'base64') : Buffer.from(decodeURIComponent(body)));
   return target;
 }
@@ -56,11 +56,32 @@ try {
     return { width: p.canvas.width, height: p.canvas.height, fps: p.canvas.fps || 30, duration, narration: p.narration?.src || null };
   });
   await page.setViewportSize({ width: info.width, height: info.height });
-  const narrationPath = writeNarration(info.narration, tempDir);
+  // 音轨 = 配音轨（narration）+ 所有 voice 积木（口播生产线生成），按各自入点延迟混流
+  const voices = await page.evaluate(() =>
+    (window.__HF_PROJECT?.blocks || [])
+      .filter((b) => b.type === 'voice' && b.props?.src)
+      .map((b) => ({ start: Number(b.start) || 0, src: b.props.src })),
+  );
+  const audioInputs = [];
+  if (info.narration) {
+    const p = writeDataUrlAudio(info.narration, tempDir, 'narration');
+    if (p) audioInputs.push({ path: p, delayMs: 0 });
+  }
+  voices.forEach((voice, i) => {
+    const p = writeDataUrlAudio(voice.src, tempDir, `voice-${i}`);
+    if (p) audioInputs.push({ path: p, delayMs: Math.round(voice.start * 1000) });
+  });
+
   const args = ['-y', '-f', 'image2pipe', '-vcodec', 'png', '-framerate', String(info.fps), '-i', 'pipe:0'];
-  if (narrationPath) args.push('-i', narrationPath);
+  for (const input of audioInputs) args.push('-i', input.path);
+  if (audioInputs.length) {
+    const parts = audioInputs.map((input, i) => `[${i + 1}:a]adelay=${input.delayMs}|${input.delayMs}[a${i + 1}]`);
+    // 注：内置 ffmpeg 较旧，不支持 amix 的 normalize 选项，使用默认归一化混音
+    parts.push(`${audioInputs.map((_, i) => `[a${i + 1}]`).join('')}amix=inputs=${audioInputs.length}[aout]`);
+    args.push('-filter_complex', parts.join(';'), '-map', '0:v', '-map', '[aout]');
+  }
   args.push('-t', String(info.duration), '-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p');
-  if (narrationPath) args.push('-c:a', 'aac', '-b:a', '192k'); else args.push('-an');
+  if (audioInputs.length) args.push('-c:a', 'aac', '-b:a', '192k'); else args.push('-an');
   args.push('-movflags', '+faststart', output);
   const ffmpeg = spawn(ffmpegInstaller.path, args, { stdio: ['pipe', 'inherit', 'inherit'] });
   const frames = Math.ceil(info.duration * info.fps);

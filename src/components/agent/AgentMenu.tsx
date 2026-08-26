@@ -12,6 +12,7 @@ import SceneBlueprintLoader from './SceneBlueprintLoader';
 import DirectorAgentLoader from './DirectorAgentLoader';
 import DirectorPlanAdapterLoader from './DirectorPlanAdapterLoader';
 import AssetResolverLoader from './AssetResolverLoader';
+import VoiceoverPipelineLoader from './VoiceoverPipelineLoader';
 
 /**
  * AI 助手菜单：把所有 Agent 能力收进一个下拉面板。
@@ -38,6 +39,10 @@ const GROUPS: { label: string; items: React.ReactNode[] }[] = [
       <ContentDatasetCleanerLoader key="cleaner" />,
       <AssetInsightExportButton key="insight" />,
     ],
+  },
+  {
+    label: '口播生产线',
+    items: [<VoiceoverPipelineLoader key="voiceover" />],
   },
   {
     label: '导演与模板',

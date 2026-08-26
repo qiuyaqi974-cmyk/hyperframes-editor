@@ -27,7 +27,12 @@ await esbuild.build({
   format: 'iife',
   jsx: 'automatic',
   alias: { '@': path.join(root, 'src') },
-  define: { 'process.env.NODE_ENV': '"production"' },
+  // 播放器运行在导出 HTML 里，没有 Vite 注入的 import.meta.env；
+  // TTS 地址固定为同源（独立 TTS 服务场景由反向代理提供 /api/tts/*）。
+  define: {
+    'process.env.NODE_ENV': '"production"',
+    'import.meta.env.VITE_TTS_BASE_URL': '""',
+  },
   outfile: path.join(outDir, 'hf-player.iife.js'),
   logLevel: 'info',
 });
