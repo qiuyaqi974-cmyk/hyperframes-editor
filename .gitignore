@@ -5,6 +5,25 @@ dist
 .DS_Store
 .vite
 electron/runtime.mjs
+electron/main.mjs
 .env
 .env.*
 !.env.example
+.tmp-transcription-smoke/
+
+# Local media, render previews, and scratch helpers
+*.mp4
+clips_graded/
+keyframe*.png
+doctor_output.json
+edl.json
+edl_intro.json
+adapter_minimal.py
+check_png.py
+create-test-package.py
+create_edl.py
+extract_keyframes.py
+run_ffmpeg.bat
+
+# Separately cloned local skill repository
+video-use/

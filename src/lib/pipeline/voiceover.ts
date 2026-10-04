@@ -1,6 +1,7 @@
 import type { Block, CanvasConfig, Scene, VoiceProps } from '@/types';
 import { createSubtitleBlock, createVoiceBlock } from '@/lib/blockFactory';
 import { XunfeiTTS } from '@/lib/tts/xfyun';
+import { voiceCacheKey } from '@/lib/pipeline/batchVoiceover';
 
 /**
  * 口播生产线：口播稿 → 逐句 TTS → 按每句音频时长锁定时间线。
@@ -15,6 +16,7 @@ export interface VoiceoverOptions {
   voiceName?: string;
   speed?: number;
   volume?: number;
+  pitch?: number;
   /** 拿不到真实音频时长时的兜底估算（秒/字），讯飞语速 60 约 4.2 字/秒 */
   charsPerSecond?: number;
 }
@@ -61,10 +63,12 @@ export async function synthesizeScript(
 
   for (let i = 0; i < sentences.length; i += 1) {
     const sentence = sentences[i];
+    const sceneId = `scene_${String(i + 1).padStart(3, '0')}`;
     const result = await tts.synthesize(sentence, {
-      voiceName: options.voiceName ?? 'x6_lingyuyan_pro',
-      speed: options.speed ?? 60,
-      volume: options.volume ?? 50,
+      voiceName: options.voiceName ?? 'x4_lingyuyan',
+      speed: options.speed ?? 68,
+      volume: options.volume ?? 56,
+      pitch: options.pitch ?? 48,
     });
     const duration = Number(
       (result.duration ?? estimateDuration(sentence, charsPerSecond)).toFixed(2),
@@ -78,13 +82,16 @@ export async function synthesizeScript(
       src: result.src,
       duration,
       generated: true,
-      voiceName: options.voiceName ?? 'x6_lingyuyan_pro',
-      speed: options.speed ?? 60,
-      volume: options.volume ?? 50,
+      voiceName: options.voiceName ?? 'x4_lingyuyan',
+      speed: options.speed ?? 68,
+      volume: options.volume ?? 56,
+      pitch: options.pitch ?? 48,
     } as VoiceProps;
+    voiceBlock.props.ttsCacheKey = voiceCacheKey(voiceBlock.props);
     voiceBlock.start = cursor;
     voiceBlock.duration = duration;
     voiceBlock.source = 'pipeline';
+    voiceBlock.sceneId = sceneId;
     blocks.push(voiceBlock);
 
     const subtitleBlock = createSubtitleBlock(canvas, layer++, cursor);
@@ -94,10 +101,11 @@ export async function synthesizeScript(
     subtitleBlock.duration = duration;
     subtitleBlock.animation = { ...subtitleBlock.animation, duration: Math.min(0.22, duration / 3) };
     subtitleBlock.source = 'srt';
+    subtitleBlock.sceneId = sceneId;
     blocks.push(subtitleBlock);
 
     scenes.push({
-      id: `scene_${String(i + 1).padStart(3, '0')}`,
+      id: sceneId,
       index: i + 1,
       start: cursor,
       end: Number((cursor + duration).toFixed(2)),

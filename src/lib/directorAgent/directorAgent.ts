@@ -12,10 +12,12 @@ function chooseBlueprint(request: DirectorRequest, blueprints: SceneBlueprint[])
 }
 
 function scriptDirection(stage: number, request: DirectorRequest, scene: SceneBlueprint['scenes'][number]): string {
-  if (stage === 0) return `围绕“${request.topic}”提出一个反常识问题或痛点，用一句话制造冲突。`;
-  if (stage === 1) return `解释“${request.topic}”的核心观点，围绕${scene.informationGoal}逐步展开。`;
-  if (stage === 2) return `为“${request.topic}”加入真实案例、数据或操作演示，证明前面的观点。`;
-  return `结合目标“${request.goal || '让观众采取下一步行动'}”，给出清晰、低门槛的行动引导。`;
+  const audience = request.audience ? `，只对“${request.audience}”说` : '';
+  const tone = request.tone ? `语气保持${request.tone}` : '';
+  if (stage === 0) return `围绕“${request.topic}”提出一个反常识问题或痛点${audience}，用一句话制造冲突。${tone}`;
+  if (stage === 1) return `解释“${request.topic}”的核心表达，围绕${scene.informationGoal}逐步展开。${tone}`;
+  if (stage === 2) return `为“${request.topic}”加入真实案例、数据或操作演示，证明前面的观点。情绪走向：${request.emotionArc || '从疑问走向确信'}。`;
+  return `引导观众“${request.endingAction || request.goal || '采取下一步行动'}”，动作清晰且门槛低。`;
 }
 
 /** 基于 Scene Blueprint 生成可供后续写稿使用的导演方案，不调用模型。 */
@@ -28,7 +30,7 @@ export function generateDirectorPlan(request: DirectorRequest, blueprints: Scene
     scenes: selected.scenes.map((scene, index) => ({
       purpose: scene.purpose,
       scriptDirection: scriptDirection(index, request, scene),
-      visualDirection: `${scene.visualType}；素材需求：${scene.assetRequirement}`,
+      visualDirection: `${scene.visualType}；素材需求：${scene.assetRequirement}${request.visualRules ? `；全局视觉原则：${request.visualRules}` : ''}`,
       subtitleDirection: scene.subtitleRule,
     })),
   };

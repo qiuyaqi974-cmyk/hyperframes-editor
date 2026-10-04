@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 
 /**
  * Excel 导入共享内核。
@@ -29,7 +29,9 @@ function plainCellValue(value: ExcelJS.CellValue): unknown {
 
 /** 读取 Excel 第一个 sheet 的全部行（首行为表头，键自动 trim） */
 export async function readFirstSheetRows(file: File): Promise<XlsxRow[]> {
-  const workbook = new ExcelJS.Workbook();
+  // Excel 解析器体积较大，仅在用户真的导入工作簿时下载和初始化。
+  const { default: ExcelRuntime } = await import('exceljs');
+  const workbook = new ExcelRuntime.Workbook();
   await workbook.xlsx.load(await file.arrayBuffer());
   const sheet = workbook.worksheets[0];
   if (!sheet) return [];

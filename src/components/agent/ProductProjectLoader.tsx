@@ -1,5 +1,6 @@
-import type { ProjectSnapshot } from '@/types';
+import type { DirectorDecision, ProjectSnapshot } from '@/types';
 import type { AssetInsight } from '@/lib/agent/assetAnalyzer';
+import { useEditorStore } from '@/store/editorStore';
 
 interface ElectronBridge {
   generateProductProject: (input: {
@@ -9,6 +10,7 @@ interface ElectronBridge {
       targetAudience?: string;
       sellingPoints?: string[];
     };
+    director?: DirectorDecision;
   }) => Promise<{ snapshot: ProjectSnapshot; assetInsights?: AssetInsight[] }>;
 }
 
@@ -32,9 +34,10 @@ export default function ProductProjectLoader() {
           targetAudience: '普通消费者',
           sellingPoints: [],
         },
+        director: useEditorStore.getState().director,
       });
       window.dispatchEvent(new CustomEvent('hyperframes:asset-insights', { detail: assetInsights ?? [] }));
-      window.dispatchEvent(new CustomEvent('hyperframes:import-snapshot', { detail: snapshot }));
+      useEditorStore.getState().importGeneratedSnapshot(snapshot);
     } catch (error) {
       console.error(error);
       console.error('generate product project failed', error);

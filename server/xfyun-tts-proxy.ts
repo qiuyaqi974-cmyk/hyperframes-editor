@@ -10,6 +10,7 @@ interface TTSRequest {
   voiceName: string;
   speed: number;
   volume: number;
+  pitch: number;
 }
 
 function json(res: any, status: number, payload: unknown) {
@@ -81,10 +82,10 @@ function synthesize(request: TTSRequest): Promise<string> {
         business: {
           aue: 'lame',
           auf: 'audio/L16;rate=16000',
-          vcn: request.voiceName || 'x6_lingyuyan_pro',
-          speed: clamp(request.speed, 0, 100, 60),
-          volume: clamp(request.volume, 0, 100, 50),
-          pitch: 50,
+          vcn: request.voiceName || 'x4_lingyuyan',
+          speed: clamp(request.speed, 0, 100, 68),
+          volume: clamp(request.volume, 0, 100, 56),
+          pitch: clamp(request.pitch, 0, 100, 48),
           tte: 'UTF8',
         },
         data: {

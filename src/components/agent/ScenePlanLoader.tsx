@@ -51,7 +51,7 @@ export default function ScenePlanLoader() {
   const handleLoad = () => {
     const plan = createTestScenePlan();
     const snapshot = scenePlanToSnapshot(plan, useEditorStore.getState().assets);
-    useEditorStore.getState().importSnapshot(snapshot);
+    useEditorStore.getState().importGeneratedSnapshot(snapshot);
   };
 
   return (

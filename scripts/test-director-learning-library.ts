@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import { createReleaseCandidate } from '../src/lib/releaseCandidate';
+import { createPostPublishObservation, decidePostPublishInsight } from '../src/lib/postPublishFeedback';
+import { comparePostPublishObservations, createPostPublishExperimentReview } from '../src/lib/postPublishExperiment';
+import { curateDirectorLearningRecord, directorLearningViews, filterDirectorLearningViews, groupDirectorLearningHypotheses, synchronizeDirectorLearningRecords } from '../src/lib/directorLearningLibrary';
+import { scenePlanToSnapshot, type ScenePlan } from '../src/lib/agent/scenePlan';
+
+const plan: ScenePlan = { projectName: '跨项目学习', scenes: [{ id: 's1', duration: 10, blocks: [{ type: 'text', content: '观点', duration: 10 }] }] };
+const snapshot = scenePlanToSnapshot(plan);
+snapshot.director = { objective: '解释同一个问题', audience: '创作者', thesis: '同一个表达', contentType: 'knowledge', tone: '', pacing: 'balanced', emotionArc: '', endingAction: '', visualRules: '', scenes: {}, updatedAt: '' };
+const rc1 = createReleaseCandidate(snapshot, [], new Date('2026-09-01T00:00:00.000Z'));
+const rc2 = createReleaseCandidate({ ...structuredClone(snapshot), blocks: snapshot.blocks.map((item) => ({ ...item, start: item.start + 0.1 })) }, [rc1], new Date('2026-09-01T01:00:00.000Z'));
+rc1.render = { outputPath: 'a.mp4', reportPath: 'a.json', sha256: 'sha-a', renderedAt: '' };
+rc2.render = { outputPath: 'b.mp4', reportPath: 'b.json', sha256: 'sha-b', renderedAt: '' };
+const candidates = [rc1, rc2];
+const common = { source: { kind: 'manual-entry' as const, platform: 'B站', accountLabel: '账号 A', postUrl: '' }, publishedAt: '2026-09-01T08:00:00.000Z', observedAt: '2026-09-02T08:00:00.000Z' };
+let observation1 = createPostPublishObservation({ ...common, rcId: rc1.id, source: { ...common.source, postUrl: 'BV-a' }, metrics: { completionRate: 30, retention: [{ second: 3, rate: 55 }] } }, candidates, new Date('2026-09-03T00:00:00.000Z'));
+const observation2 = createPostPublishObservation({ ...common, rcId: rc2.id, source: { ...common.source, postUrl: 'BV-b' }, metrics: { completionRate: 45, retention: [{ second: 3, rate: 70 }] } }, candidates, new Date('2026-09-03T00:01:00.000Z'));
+observation1 = decidePostPublishInsight(observation1, 'completion', 'accepted', '需要前移核心内容。', true, new Date('2026-09-03T01:00:00.000Z'));
+const comparison = comparePostPublishObservations(observation1, observation2, candidates, new Date('2026-09-03T02:00:00.000Z'));
+const experiment = createPostPublishExperimentReview(comparison, '对照版本描述性完播更高，仍需重复。', true, [], new Date('2026-09-03T03:00:00.000Z'));
+const sourceBefore = JSON.stringify({ observation1, observation2, experiment, candidates });
+
+let records = synchronizeDirectorLearningRecords([observation1, observation2], [experiment], candidates, [], new Date('2026-09-04T00:00:00.000Z'));
+assert.equal(records.length, 2);
+assert(records.some((item) => item.sourceKind === 'accepted-insight'));
+assert(records.some((item) => item.sourceKind === 'experiment-review'));
+const insight = records.find((item) => item.sourceKind === 'accepted-insight')!;
+assert.deepEqual(insight.scope.platforms, ['B站']);
+assert.deepEqual(insight.scope.contentTypes, ['knowledge']);
+assert.deepEqual(insight.scope.audiences, ['创作者']);
+assert.equal(insight.provenance.renderSha256[0], 'sha-a');
+assert.equal(JSON.stringify({ observation1, observation2, experiment, candidates }), sourceBefore, 'sync is read-only');
+
+assert.throws(() => curateDirectorLearningRecord(insight, 'support', '开场要快', '适用于知识视频', false), /确认/);
+assert.throws(() => curateDirectorLearningRecord(insight, 'support', '', '适用', true), /假设/);
+assert.throws(() => curateDirectorLearningRecord(insight, 'support', '开场要快', '', true), /理由/);
+const supported = curateDirectorLearningRecord(insight, 'support', '核心内容应在前段出现', '仅适用于同账号知识内容。', true, new Date('2026-09-04T01:00:00.000Z'));
+const counterexample = curateDirectorLearningRecord({ ...records.find((item) => item.sourceKind === 'experiment-review')!, id: 'counter' }, 'counterexample', '核心内容应在前段出现', '版本差异也可能来自发布时间。', true, new Date('2026-09-04T02:00:00.000Z'));
+records = [supported, counterexample];
+const groups = groupDirectorLearningHypotheses(records);
+assert.equal(groups[0].support, 1);
+assert.equal(groups[0].counterexamples, 1);
+
+const now = new Date('2026-09-20T00:00:00.000Z');
+let views = directorLearningViews(records, [observation1, observation2], candidates, now);
+assert(views.every((item) => item.freshness === 'fresh'));
+assert(views.every((item) => item.credentialStatus === 'verified'));
+const aging = { ...supported, id: 'aging', provenance: { ...supported.provenance, sourceConfirmedAt: '2026-06-01T00:00:00.000Z' } };
+const expired = { ...supported, id: 'expired', provenance: { ...supported.provenance, sourceConfirmedAt: '2025-01-01T00:00:00.000Z' } };
+views = directorLearningViews([supported, aging, expired], [observation1], candidates, now);
+assert.equal(views.find((item) => item.id === 'aging')?.freshness, 'aging');
+assert.equal(views.find((item) => item.id === 'expired')?.freshness, 'expired');
+assert.equal(directorLearningViews([supported], [], candidates, now)[0].credentialStatus, 'unavailable');
+assert.equal(directorLearningViews([supported], [observation1], [{ ...rc1, render: { ...rc1.render, sha256: 'wrong' } }, rc2], now)[0].credentialStatus, 'mismatch');
+assert.equal(filterDirectorLearningViews(views, { query: '核心内容 知识', platform: 'B站', contentType: 'knowledge', role: 'support' }).length, 3);
+assert.equal(filterDirectorLearningViews(views, { freshness: 'expired' }).length, 1);
+
+const synchronizedAgain = synchronizeDirectorLearningRecords([observation1, observation2], [experiment], candidates, records, now);
+assert.equal(synchronizedAgain.find((item) => item.id === supported.id)?.curation?.role, 'support', 'sync preserves curation');
+console.log('Director learning library checks passed: cross-project projection, scope/search, human support/counterexample curation, evidence decay and credential status.');

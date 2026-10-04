@@ -2,6 +2,7 @@ import type { LLMProvider } from '@/lib/agent/llmProvider';
 import { MockProvider } from '@/lib/agent/llmProvider';
 import type { SceneBlockPlan, ScenePlan } from '@/lib/agent/scenePlan';
 import type { AssetInsight } from '@/lib/agent/assetAnalyzer';
+import type { DirectorDecision } from '@/types';
 
 export interface ProductVideoInput {
   productName: string;
@@ -9,6 +10,7 @@ export interface ProductVideoInput {
   sellingPoints: string[];
   duration: number;
   assetInsights?: AssetInsight[];
+  director?: DirectorDecision;
 }
 
 function sceneBlocks(text: string, visualType: 'card' | 'image', visualContent: string, duration: number): SceneBlockPlan[] {
@@ -90,6 +92,7 @@ function buildPrompt(input: ProductVideoInput): string {
     '9. 返回前自行检查：scenes 存在；每个 scene 的 blocks 是数组；每个 type 都合法；最终内容是可解析的 JSON。',
     '10. 只能使用以下已有素材。image block 必须增加 assetId，且只能填写 AssetInsight 中存在的 assetId；不要虚构素材。assetHint 作为旧格式兼容字段可以同时保留。',
     `ASSET_INSIGHTS:\n${JSON.stringify(input.assetInsights ?? [], null, 2)}`,
+    `DIRECTOR_DECISIONS（全局约束，生成内容必须遵守；空字段可忽略）:\n${JSON.stringify(input.director ?? {}, null, 2)}`,
     `INPUT_JSON:\n${JSON.stringify(input)}`,
   ].join('\n');
 }

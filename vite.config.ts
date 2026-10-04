@@ -9,6 +9,11 @@ import { loadLocalEnv } from './server/loadLocalEnv';
 loadLocalEnv();
 
 export default defineConfig({
+  build: {
+    manifest: true,
+    // ExcelJS 是用户导入工作簿时才加载的独立功能包；首屏与 AI 工作台均不下载它。
+    chunkSizeWarningLimit: 1000,
+  },
   resolve: {
     alias: {
       // package.json 是 type: module，这里不能用 __dirname

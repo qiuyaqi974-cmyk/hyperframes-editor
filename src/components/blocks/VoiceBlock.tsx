@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Block, EvaluatedFrame } from '@/types';
 import { useEditorStore } from '@/store/editorStore';
 import { XunfeiTTS } from '@/lib/tts/xfyun';
+import { voiceCacheKey } from '@/lib/pipeline/batchVoiceover';
 
 interface Props {
   block: Extract<Block, { type: 'voice' }>;
@@ -45,6 +46,7 @@ export default function VoiceBlock({ block, mode = 'edit' }: Props) {
           <span>{props.voiceName}</span>
           <span>语速 {props.speed}</span>
           <span>音量 {props.volume}</span>
+          <span>音高 {props.pitch ?? 48}</span>
         </div>
         {/* 音频由播放器按时间轴托管同步；导出渲染时同样通过该元素取流 */}
         {hasAudio && (
@@ -63,10 +65,12 @@ export default function VoiceBlock({ block, mode = 'edit' }: Props) {
         voiceName: props.voiceName,
         speed: props.speed,
         volume: props.volume,
+        pitch: props.pitch ?? 48,
       });
       updateProps(block.id, {
         src: result.src,
         generated: true,
+        ttsCacheKey: voiceCacheKey(props),
         ...(result.duration !== undefined ? { duration: result.duration } : {}),
       });
       if (result.duration !== undefined) {
@@ -117,6 +121,7 @@ export default function VoiceBlock({ block, mode = 'edit' }: Props) {
           <span>{props.voiceName}</span>
           <span>语速 {props.speed}</span>
           <span>音量 {props.volume}</span>
+          <span>音高 {props.pitch ?? 48}</span>
         </div>
       </div>
 

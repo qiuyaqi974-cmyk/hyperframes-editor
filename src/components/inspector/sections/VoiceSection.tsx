@@ -14,7 +14,7 @@ export default function VoiceSection({ block }: { block: Extract<Block, { type: 
         <TextField
           value={block.props.voiceName}
           onChange={(voiceName) => updateProps(block.id, { voiceName })}
-          placeholder="x6_lingyuyan_pro"
+          placeholder="x4_lingyuyan"
         />
       </Row>
       <Row label="语速">
@@ -22,6 +22,9 @@ export default function VoiceSection({ block }: { block: Extract<Block, { type: 
       </Row>
       <Row label="音量">
         <SliderField value={block.props.volume} onChange={(volume) => updateProps(block.id, { volume })} min={0} max={100} step={1} format={(v) => `${Math.round(v)}%`} />
+      </Row>
+      <Row label="音高">
+        <SliderField value={block.props.pitch ?? 48} onChange={(pitch) => updateProps(block.id, { pitch })} min={0} max={100} step={1} format={(v) => `${Math.round(v)}`} />
       </Row>
       <Row label="音频时长">
         <NumberField value={block.props.duration} onChange={(duration) => updateProps(block.id, { duration })} min={0} max={3600} step={0.1} suffix="秒" />

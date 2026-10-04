@@ -1,41 +1,69 @@
 import { useState } from 'react';
+import { scenePlanToSnapshot } from '@/lib/agent/scenePlan';
 import { generateDirectorPlan } from '@/lib/directorAgent/directorAgent';
+import { directorPlanToScenePlan } from '@/lib/directorAgent/directorPlanAdapter';
 import { generateSceneBlueprints } from '@/lib/sceneBlueprint/blueprintGenerator';
+import { useEditorStore } from '@/store/editorStore';
 import directorTemplatesV2 from '@/lib/contentDirector/director-templates-v2.json';
 
+/** 使用工程级导演决策生成场景；所有输入来自持久化 brief，而不是临时表单。 */
 export default function DirectorAgentLoader() {
-  const [topic, setTopic] = useState('为什么普通人应该学习AI');
-  const [goal, setGoal] = useState('涨粉');
-  const [contentType, setContentType] = useState('knowledge');
   const [status, setStatus] = useState('');
 
-  const handleGenerate = () => {
+  const buildPlan = () => {
+    const state = useEditorStore.getState();
+    const director = state.director;
+    if (!director.objective || !director.audience || !director.thesis) {
+      throw new Error('请先在“导演决策层”填写目标、受众和核心表达。');
+    }
+    const blueprints = generateSceneBlueprints(directorTemplatesV2);
+    return generateDirectorPlan({
+      topic: director.thesis,
+      goal: director.objective,
+      contentType: director.contentType,
+      audience: director.audience,
+      tone: director.tone,
+      pacing: director.pacing,
+      emotionArc: director.emotionArc,
+      endingAction: director.endingAction,
+      visualRules: director.visualRules,
+    }, blueprints);
+  };
+
+  const handleApply = () => {
     try {
-      const blueprints = generateSceneBlueprints(directorTemplatesV2);
-      const plan = generateDirectorPlan({ topic, goal, contentType }, blueprints);
-      const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+      const plan = buildPlan();
+      const scenePlan = directorPlanToScenePlan(plan);
+      const state = useEditorStore.getState();
+      state.importGeneratedSnapshot(scenePlanToSnapshot(scenePlan, state.assets));
+      setStatus(`已按导演决策生成 ${plan.scenes.length} 个场景。`);
+    } catch (error) {
+      setStatus(`无法应用：${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      const plan = buildPlan();
+      const url = URL.createObjectURL(new Blob([JSON.stringify({ director: useEditorStore.getState().director, plan }, null, 2)], { type: 'application/json' }));
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = 'director-plan.json';
       anchor.click();
       URL.revokeObjectURL(url);
-      console.log('导演方案生成完成：', plan.templateId);
-      setStatus(`生成完成：${plan.scenes.length} 个场景`);
+      setStatus(`导演方案已导出：${plan.scenes.length} 个场景。`);
     } catch (error) {
-      setStatus(`生成失败：${error instanceof Error ? error.message : String(error)}`);
+      setStatus(`无法导出：${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <input value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="主题" className="w-24 rounded border border-stroke bg-panel-3 px-1.5 py-1 text-[11px] text-ink" />
-      <input value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="目标" className="w-32 rounded border border-stroke bg-panel-3 px-1.5 py-1 text-[11px] text-ink" />
-      <input value={contentType} onChange={(event) => setContentType(event.target.value)} placeholder="内容类型" className="w-20 rounded border border-stroke bg-panel-3 px-1.5 py-1 text-[11px] text-ink" />
-      <button type="button" onClick={handleGenerate} className="rounded-md border border-sky-300/40 bg-sky-300/10 px-2.5 py-[5px] text-[11px] font-medium text-sky-100 hover:bg-sky-300/20">
-        生成导演方案
-      </button>
-      {status && <span className="text-[10px] text-ink-faint">{status}</span>}
+    <span className="inline-flex flex-col gap-1.5">
+      <span className="grid grid-cols-2 gap-1.5">
+        <button type="button" onClick={handleApply} className="rounded-md border border-sky-300/40 bg-sky-300/10 px-2 py-[5px] text-[10.5px] font-medium text-sky-100 hover:bg-sky-300/20">应用导演决策</button>
+        <button type="button" onClick={handleExport} className="rounded-md border border-sky-300/40 bg-sky-300/10 px-2 py-[5px] text-[10.5px] font-medium text-sky-100 hover:bg-sky-300/20">导出导演方案</button>
+      </span>
+      {status && <span className="text-[10px] leading-relaxed text-ink-faint">{status}</span>}
     </span>
   );
 }

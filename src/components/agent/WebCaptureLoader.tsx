@@ -21,30 +21,29 @@ interface CaptureResponse {
  * 采集完成后可用「自动匹配到字幕」把素材对位到口播场景。
  */
 export default function WebCaptureLoader() {
+  const [expanded, setExpanded] = useState(false);
+  const [url, setUrl] = useState('https://');
+  const [keywordInput, setKeywordInput] = useState('');
+  const [motionSeconds, setMotionSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
 
   const handleCapture = async () => {
     if (busy) return;
-    const url = window.prompt('网页地址（http/https/file）', 'https://');
-    if (!url || url === 'https://') return;
-    const keywordInput = window.prompt('关键词定位截图（逗号分隔，可留空）', '');
-    if (keywordInput === null) return;
+    if (!url.trim() || url.trim() === 'https://') return setStatus('请输入完整网页地址。');
     const keywords = keywordInput.split(/[,，]/).map((k) => k.trim()).filter(Boolean);
-    const motionInput = window.prompt('连拍录屏秒数（0-15，0 或留空不录；录网页里的动态演示）', '0');
-    if (motionInput === null) return;
-    const motionSeconds = Math.max(0, Math.min(15, Number(motionInput) || 0));
+    const captureSeconds = Math.max(0, Math.min(15, Number(motionSeconds) || 0));
 
     setBusy(true);
-    setStatus(motionSeconds > 0 ? '正在采集截图 + 录屏…' : '正在打开无头浏览器采集…');
+    setStatus(captureSeconds > 0 ? '正在采集截图 + 录屏…' : '正在打开无头浏览器采集…');
     try {
       const response = await fetch('/api/capture/web', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          url,
+          url: url.trim(),
           keywords,
-          ...(motionSeconds > 0 ? { motion: { seconds: motionSeconds, keyword: keywords[0] } } : {}),
+          ...(captureSeconds > 0 ? { motion: { seconds: captureSeconds, keyword: keywords[0] } } : {}),
         }),
       });
       const payload = (await response.json()) as CaptureResponse;
@@ -82,12 +81,23 @@ export default function WebCaptureLoader() {
     <span className="inline-flex flex-col gap-1.5">
       <button
         type="button"
-        onClick={handleCapture}
+        onClick={() => setExpanded((value) => !value)}
         disabled={busy}
         className="w-full rounded-md border border-lime-300/40 bg-lime-300/10 px-2.5 py-[6px] text-[11px] font-medium text-lime-100 text-left hover:bg-lime-300/20 disabled:opacity-50"
       >
-        {busy ? '采集中…' : '网页截图进素材库'}
+        {busy ? '采集中…' : `网页截图进素材库 ${expanded ? '−' : '+'}`}
       </button>
+      {expanded && (
+        <span className="grid gap-1.5 rounded-md border border-stroke bg-panel-3/70 p-2">
+          <input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" className="rounded border border-stroke bg-panel px-2 py-1.5 text-[11px] text-ink outline-none focus:border-lime-300/50" />
+          <input value={keywordInput} onChange={(event) => setKeywordInput(event.target.value)} placeholder="定位关键词，逗号分隔（可选）" className="rounded border border-stroke bg-panel px-2 py-1.5 text-[11px] text-ink outline-none focus:border-lime-300/50" />
+          <label className="flex items-center justify-between gap-2 text-[10px] text-ink-faint">
+            动态录屏秒数（0–15）
+            <input type="number" min={0} max={15} value={motionSeconds} onChange={(event) => setMotionSeconds(Math.max(0, Math.min(15, Number(event.target.value) || 0)))} className="w-16 rounded border border-stroke bg-panel px-2 py-1 text-[11px] text-ink outline-none" />
+          </label>
+          <button type="button" onClick={handleCapture} disabled={busy || !url.trim() || url.trim() === 'https://'} className="rounded bg-lime-400 px-2.5 py-1.5 text-[11px] font-semibold text-[#102414] disabled:cursor-not-allowed disabled:opacity-40">开始采集</button>
+        </span>
+      )}
       {status && (
         <span className="text-[10px] leading-relaxed text-ink-faint" title={status}>
           {status}

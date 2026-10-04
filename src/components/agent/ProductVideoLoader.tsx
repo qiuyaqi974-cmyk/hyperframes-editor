@@ -2,7 +2,7 @@ import { generateProductVideoPlan } from '@/lib/agent/productVideoAgent';
 import { ZhipuProvider } from '@/lib/agent/providers/zhipuProvider';
 import { scenePlanToSnapshot } from '@/lib/agent/scenePlan';
 import { useEditorStore } from '@/store/editorStore';
-import type { ProjectSnapshot } from '@/types';
+import type { DirectorDecision, ProjectSnapshot } from '@/types';
 
 interface ElectronBridge {
   generateProductProject: (input: {
@@ -11,6 +11,7 @@ interface ElectronBridge {
       targetAudience: string;
       sellingPoints: string[];
     };
+    director?: DirectorDecision;
   }) => Promise<{ snapshot: ProjectSnapshot }>;
 }
 
@@ -24,9 +25,10 @@ export default function ProductVideoLoader() {
         sellingPoints: ['小巧便携', '充电使用', '快速榨汁', '清洗方便'],
       };
       const bridge = (window as Window & { hyperframesElectron?: ElectronBridge }).hyperframesElectron;
+      const director = useEditorStore.getState().director;
       if (bridge?.generateProductProject) {
-        const { snapshot } = await bridge.generateProductProject({ productInfo });
-        useEditorStore.getState().importSnapshot(snapshot);
+        const { snapshot } = await bridge.generateProductProject({ productInfo, director });
+        useEditorStore.getState().importGeneratedSnapshot(snapshot);
         return;
       }
       const provider = new ZhipuProvider();
@@ -36,12 +38,13 @@ export default function ProductVideoLoader() {
         {
           ...productInfo,
           duration: 30,
+          director,
         },
         provider,
       );
       console.log('Generated ScenePlan:', plan);
       const snapshot = scenePlanToSnapshot(plan, useEditorStore.getState().assets);
-      useEditorStore.getState().importSnapshot(snapshot);
+      useEditorStore.getState().importGeneratedSnapshot(snapshot);
     } catch (error) {
       window.alert(`商品视频生成失败：${error instanceof Error ? error.message : String(error)}`);
     }

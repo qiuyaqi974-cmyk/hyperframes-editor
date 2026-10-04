@@ -3,7 +3,7 @@ import { analyzeAssets, type AssetInsight } from '@/lib/agent/assetAnalyzer';
 import { generateProductVideoPlan, type ProductVideoInput } from '@/lib/agent/productVideoAgent';
 import { scenePlanToSnapshot } from '@/lib/agent/scenePlan';
 import type { LLMProvider } from '@/lib/agent/llmProvider';
-import type { ProjectSnapshot } from '@/types';
+import type { DirectorDecision, ProjectSnapshot } from '@/types';
 // @ts-expect-error Node-only output writer; this module is executed by Electron/Node.
 import { writeFile } from 'node:fs/promises';
 // @ts-expect-error Node-only path helper; this module is executed by Electron/Node.
@@ -16,6 +16,7 @@ export interface ProductProjectInput {
     targetAudience: string;
     sellingPoints: string[];
   };
+  director?: DirectorDecision;
 }
 
 export interface ProductProjectResult {
@@ -37,6 +38,7 @@ export async function generateProductProject(
     ...input.productInfo,
     duration: 30,
     assetInsights,
+    director: input.director,
   };
   const plan = await generateProductVideoPlan(videoInput, provider);
   console.log('assets before scene:', assets);

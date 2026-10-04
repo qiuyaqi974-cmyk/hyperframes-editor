@@ -6,9 +6,18 @@ import type {
   BlockPropsPatch,
   BlockType,
   CanvasConfig,
+  DirectorDecision,
+  DirectorSceneDecision,
+  ExternalMediaSource,
+  ExternalClipInbox,
   ProjectSnapshot,
   NarrationTrack,
   Scene,
+  SceneReview,
+  SceneReviewStatus,
+  SourceStoryAssembly,
+  SourceStoryAssemblyVersion,
+  SourceStoryVersionSelection,
   ThemeId,
 } from '@/types';
 import {
@@ -31,6 +40,9 @@ import { matchAssetsToScenes } from '@/lib/autoMatch';
 import { synthesizeScript, type VoiceoverOptions } from '@/lib/pipeline/voiceover';
 import { useUIStore } from './uiStore';
 import { projectDuration } from './projectDuration';
+import { EMPTY_DIRECTOR_DECISION, lockedSceneIds, normalizeDirectorDecision } from '@/lib/directorDecision';
+import { emptySceneReview, normalizeSceneReviews } from '@/lib/sceneReview';
+import { installEditorHistory, invalidateHistoryApprovals, resetEditorHistory } from './editorHistory';
 
 /**
  * 文档 store：只保存「工程是什么」——可序列化、可导出的内容。
@@ -43,20 +55,47 @@ interface EditorDocumentState {
   canvas: CanvasConfig;
   blocks: Block[];
   assets: Asset[];
+  sourceMedia: ExternalMediaSource[];
+  storyAssembly?: SourceStoryAssembly;
+  storyAssemblyVersions: SourceStoryAssemblyVersion[];
+  externalClipInboxes: ExternalClipInbox[];
+  setExternalClipInboxes: (inboxes: ExternalClipInbox[]) => void;
+  storyVersionSelection?: SourceStoryVersionSelection;
   projectName: string;
   narration: NarrationTrack | null;
   scenes: Scene[];
+  reviews: Record<string, SceneReview>;
   themeId: ThemeId;
+  director: DirectorDecision;
+  /** 最近一次批量配音前的工程快照，只用于一次性撤销，不参与导出。 */
+  voiceTimelineUndo: ProjectSnapshot | null;
 
   /* ---- 素材 ---- */
   addAsset: (asset: Asset) => void;
   removeAsset: (id: string) => void;
+  addSourceMedia: (source: ExternalMediaSource) => void;
+  updateSourceMedia: (id: string, patch: Partial<ExternalMediaSource>) => void;
+  setStoryAssembly: (assembly: SourceStoryAssembly | undefined) => void;
+  setStoryAssemblyVersions: (versions: SourceStoryAssemblyVersion[]) => void;
+  setStoryVersionSelection: (selection: SourceStoryVersionSelection | undefined) => void;
+  removeSourceMedia: (id: string) => void;
+  addSourceClip: (sourceId: string, sourceIn: number, sourceOut: number) => string;
   bindAssetToSelectedImage: (asset: Asset) => boolean;
   setNarration: (track: NarrationTrack | null) => void;
   importSrt: (text: string) => number;
   /** 口播生产线：整篇口播稿 → 逐句 TTS → 配音块 + 字幕 + 场景轨（替换旧 pipeline/srt 内容） */
   importVoiceoverScript: (script: string, options?: VoiceoverOptions) => Promise<number>;
-  autoMatchAssets: () => { matched: number; unmatchedScenes: number; unusedAssets: number };
+  autoMatchAssets: () => { matched: number; unmatchedScenes: number; unusedAssets: number; lockedScenes: number };
+
+  /* ---- 导演决策 ---- */
+  updateDirector: (patch: Partial<Omit<DirectorDecision, 'scenes' | 'updatedAt'>>) => void;
+  updateSceneDecision: (sceneId: string, patch: Partial<Omit<DirectorSceneDecision, 'sceneId'>>) => void;
+  setSceneReviewStatus: (sceneId: string, status: SceneReviewStatus) => void;
+  addSceneReviewComment: (sceneId: string, time: number, text: string) => string;
+  resolveSceneReviewComment: (sceneId: string, commentId: string, resolved: boolean) => void;
+  importGeneratedSnapshot: (snapshot: ProjectSnapshot) => void;
+  applyVoiceTimeline: (snapshot: ProjectSnapshot, previous: ProjectSnapshot) => void;
+  undoVoiceTimeline: () => boolean;
 
   /* ---- 积木增删改 ---- */
   addBlock: (type: BlockType, asset?: Asset | null) => string;
@@ -87,7 +126,7 @@ interface EditorDocumentState {
   exportProject: () => string;
   importProject: (json: string) => void;
   exportSnapshot: () => ProjectSnapshot;
-  importSnapshot: (snapshot: ProjectSnapshot) => void;
+  importSnapshot: (snapshot: ProjectSnapshot, preserveHistory?: boolean) => void;
 }
 
 const nextLayer = (blocks: Block[]) =>
@@ -97,10 +136,162 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
   canvas: { ...CANVAS_DEFAULT },
   blocks: [],
   assets: [],
+  sourceMedia: [],
+  storyAssembly: undefined,
+  storyAssemblyVersions: [],
+  externalClipInboxes: [],
+  setExternalClipInboxes: (externalClipInboxes) => set({ externalClipInboxes }),
+  storyVersionSelection: undefined,
   projectName: '未命名视频',
   narration: null,
   scenes: [],
+  reviews: {},
   themeId: 'midnight',
+  director: { ...EMPTY_DIRECTOR_DECISION, scenes: {} },
+  voiceTimelineUndo: null,
+
+  addSourceMedia: (source) => set((state) => ({
+    sourceMedia: state.sourceMedia.some((item) => item.id === source.id)
+      ? state.sourceMedia.map((item) => item.id === source.id ? source : item)
+      : [...state.sourceMedia, source],
+  })),
+  updateSourceMedia: (id, patch) => set((state) => ({
+    sourceMedia: state.sourceMedia.map((item) => item.id === id ? { ...item, ...patch } : item),
+  })),
+  setStoryAssembly: (storyAssembly) => set({ storyAssembly }),
+  setStoryAssemblyVersions: (storyAssemblyVersions) => set({ storyAssemblyVersions }),
+  setStoryVersionSelection: (storyVersionSelection) => set({ storyVersionSelection }),
+  removeSourceMedia: (id) => set((state) => ({
+    sourceMedia: state.sourceMedia.filter((item) => item.id !== id),
+    blocks: state.blocks.filter((block) => block.type !== 'video' || block.props.externalSourceId !== id),
+  })),
+  addSourceClip: (sourceId, rawIn, rawOut) => {
+    const source = get().sourceMedia.find((item) => item.id === sourceId);
+    if (!source) throw new Error('找不到这条源素材。');
+    const sourceIn = Math.max(0, Math.min(rawIn, source.duration));
+    const sourceOut = Math.max(sourceIn + 0.1, Math.min(rawOut, source.duration));
+    const id = get().addBlock('video');
+    const block = get().blocks.find((item) => item.id === id);
+    if (!block || block.type !== 'video') return id;
+    const width = source.width || 1280;
+    const height = source.height || 720;
+    const scale = Math.min(1, (get().canvas.width * 0.8) / width, (get().canvas.height * 0.8) / height);
+    set((state) => ({ blocks: state.blocks.map((item) => item.id === id && item.type === 'video' ? {
+      ...item,
+      name: `${source.name.replace(/\.[^.]+$/, '')} ${sourceIn.toFixed(1)}-${sourceOut.toFixed(1)}s`,
+      duration: Number((sourceOut - sourceIn).toFixed(3)),
+      position: {
+        x: Math.round((state.canvas.width - width * scale) / 2),
+        y: Math.round((state.canvas.height - height * scale) / 2),
+      },
+      props: {
+        ...item.props,
+        assetId: null,
+        externalSourceId: source.id,
+        src: source.path,
+        sourceIn,
+        sourceOut,
+        width,
+        height,
+        scale,
+        loop: false,
+        muted: false,
+      },
+      animation: { ...item.animation, type: 'none', duration: 0 },
+    } : item) }));
+    return id;
+  },
+
+  updateDirector: (patch) => set((state) => ({
+    director: { ...state.director, ...patch, updatedAt: new Date().toISOString() },
+  })),
+
+  updateSceneDecision: (sceneId, patch) => set((state) => ({
+    director: {
+      ...state.director,
+      scenes: {
+        ...state.director.scenes,
+        [sceneId]: {
+          ...(state.director.scenes[sceneId] ?? {
+            sceneId,
+            narrativeRole: 'custom' as const,
+            intent: '',
+            visualRule: '',
+            locked: false,
+          }),
+          ...patch,
+        },
+      },
+      updatedAt: new Date().toISOString(),
+    },
+  })),
+
+  setSceneReviewStatus: (sceneId, status) => set((state) => {
+    const now = new Date().toISOString();
+    const current = state.reviews[sceneId] ?? emptySceneReview(sceneId);
+    const existingDecision = state.director.scenes[sceneId] ?? {
+      sceneId,
+      narrativeRole: 'custom' as const,
+      intent: '',
+      visualRule: '',
+      locked: false,
+    };
+    const shouldUpdateLock = status === 'approved' || status === 'changes' || status === 'redo';
+    return {
+      reviews: { ...state.reviews, [sceneId]: { ...current, status, updatedAt: now } },
+      director: shouldUpdateLock ? {
+        ...state.director,
+        scenes: { ...state.director.scenes, [sceneId]: { ...existingDecision, locked: status === 'approved' } },
+        updatedAt: now,
+      } : state.director,
+    };
+  }),
+
+  addSceneReviewComment: (sceneId, rawTime, rawText) => {
+    const text = rawText.trim();
+    if (!text) throw new Error('批注内容不能为空。');
+    const scene = get().scenes.find((item) => item.id === sceneId);
+    if (!scene) throw new Error('找不到这个场景。');
+    const time = Math.max(scene.start, Math.min(rawTime, scene.end));
+    const id = `review-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const now = new Date().toISOString();
+    set((state) => {
+      const current = state.reviews[sceneId] ?? emptySceneReview(sceneId);
+      const existingDecision = state.director.scenes[sceneId];
+      return {
+        reviews: {
+          ...state.reviews,
+          [sceneId]: {
+            ...current,
+            status: current.status === 'approved' ? 'changes' : current.status,
+            comments: [...current.comments, { id, time, text, resolved: false, createdAt: now }],
+            updatedAt: now,
+          },
+        },
+        director: current.status === 'approved' && existingDecision ? {
+          ...state.director,
+          scenes: { ...state.director.scenes, [sceneId]: { ...existingDecision, locked: false } },
+          updatedAt: now,
+        } : state.director,
+      };
+    });
+    return id;
+  },
+
+  resolveSceneReviewComment: (sceneId, commentId, resolved) => set((state) => {
+    const current = state.reviews[sceneId];
+    if (!current) return state;
+    return {
+      reviews: {
+        ...state.reviews,
+        [sceneId]: {
+          ...current,
+          comments: current.comments.map((comment) => comment.id === commentId ? { ...comment, resolved } : comment),
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    };
+  }),
 
   addAsset: (asset) => set((s) => ({ assets: [...s.assets, asset] })),
 
@@ -126,6 +317,8 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
   setNarration: (narration) => set({ narration }),
 
   importSrt: (text) => {
+    const locked = lockedSceneIds(get().director, get().scenes);
+    if (locked.length) throw new Error(`有 ${locked.length} 个导演锁定场景；请先解锁再重建字幕结构。`);
     const scenes = parseSrt(text);
     if (!scenes.length) throw new Error('没有识别到有效的 SRT 字幕');
     const { blocks, canvas } = get();
@@ -142,19 +335,29 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
       block.sceneId = scene.id;
       return block;
     });
-    set({ scenes, blocks: [...manualBlocks, ...generated] });
+    set((state) => ({
+      scenes,
+      blocks: [...manualBlocks, ...generated],
+      reviews: Object.fromEntries(Object.entries(state.reviews).filter(([sceneId]) => scenes.some((scene) => scene.id === sceneId))),
+    }));
     useUIStore.getState().selectBlock(generated[0]?.id ?? null);
     return scenes.length;
   },
 
   importVoiceoverScript: async (script, options) => {
+    const locked = lockedSceneIds(get().director, get().scenes);
+    if (locked.length) throw new Error(`有 ${locked.length} 个导演锁定场景；请先解锁再重建配音时间轴。`);
     const { canvas } = get();
     const generated = await synthesizeScript(script, canvas, options);
     // 与 importSrt 同一替换语义：口播轨道（pipeline 配音块 + srt 字幕）整体重建
     const kept = get().blocks.filter(
       (block) => block.source !== 'pipeline' && block.source !== 'srt',
     );
-    set({ scenes: generated.scenes, blocks: [...kept, ...generated.blocks] });
+    set((state) => ({
+      scenes: generated.scenes,
+      blocks: [...kept, ...generated.blocks],
+      reviews: Object.fromEntries(Object.entries(state.reviews).filter(([sceneId]) => generated.scenes.some((scene) => scene.id === sceneId))),
+    }));
     const ui = useUIStore.getState();
     ui.selectBlock(generated.blocks[0]?.id ?? null);
     ui.setTime(0);
@@ -189,11 +392,21 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
     get().addBlock(asset.kind === 'video' ? 'video' : 'image', asset),
 
   autoMatchAssets: () => {
-    const { assets, scenes, blocks, canvas } = get();
+    const { assets, scenes, blocks, canvas, director } = get();
     if (!scenes.length) throw new Error('请先导入 SRT 字幕，系统才能按场景匹配素材');
     if (!assets.length) throw new Error('请先批量导入已经命名好的图片或视频');
-    const result = matchAssetsToScenes(assets, scenes);
-    const kept = blocks.filter((block) => block.source !== 'auto');
+    const lockedIds = new Set(lockedSceneIds(director, scenes));
+    const editableScenes = scenes.filter((scene) => !lockedIds.has(scene.id));
+    const lockedAssetIds = new Set(
+      blocks
+        .flatMap((block) => block.sceneId && lockedIds.has(block.sceneId) && (block.type === 'image' || block.type === 'video')
+          ? [block.props.assetId]
+          : [])
+        .filter((id): id is string => Boolean(id)),
+    );
+    const editableAssets = assets.filter((asset) => !lockedAssetIds.has(asset.id));
+    const result = matchAssetsToScenes(editableAssets, editableScenes);
+    const kept = blocks.filter((block) => block.source !== 'auto' || Boolean(block.sceneId && lockedIds.has(block.sceneId)));
     let layer = nextLayer(kept);
     const generated = result.matches.map(({ asset, scene }) => {
       const block = asset.kind === 'video'
@@ -211,7 +424,7 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
     const ui = useUIStore.getState();
     ui.selectBlock(generated[0]?.id ?? null);
     ui.setTime(generated[0]?.start ?? 0);
-    return { matched: generated.length, unmatchedScenes: result.unmatchedScenes.length, unusedAssets: result.unusedAssets.length };
+    return { matched: generated.length, unmatchedScenes: result.unmatchedScenes.length, unusedAssets: result.unusedAssets.length, lockedScenes: lockedIds.size };
   },
 
   duplicateBlock: (id) => {
@@ -400,7 +613,7 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
   },
 
   exportSnapshot: () => {
-    const { projectName, canvas, blocks, assets, narration, scenes, themeId } = get();
+    const { projectName, canvas, blocks, assets, sourceMedia, storyAssembly, storyAssemblyVersions, storyVersionSelection, narration, scenes, reviews, themeId, director } = get();
     return {
       app: 'hyperframes-editor',
       version: 4,
@@ -409,43 +622,70 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
       canvas,
       blocks,
       assets,
+      sourceMedia,
+      storyAssembly,
+      storyAssemblyVersions,
+      externalClipInboxes: get().externalClipInboxes,
+      storyVersionSelection,
       narration,
       scenes,
+      reviews,
+      director,
       updatedAt: new Date().toISOString(),
     };
   },
 
   exportProject: () => JSON.stringify(get().exportSnapshot(), null, 2),
 
-  importSnapshot: (snap) => {
+  importSnapshot: (snap, preserveHistory = false) => {
     if (!snap || snap.app !== 'hyperframes-editor') {
       throw new Error('不是 HyperFrames 编辑器导出的工程文件');
     }
+    if (!preserveHistory) resetEditorHistory();
     set({
       projectName: snap.projectName || '未命名视频',
       canvas: snap.canvas ?? get().canvas,
       blocks: Array.isArray(snap.blocks)
         ? snap.blocks.map((block) =>
-            block.type === 'voice'
-              ? ({
-                  ...block,
-                  props: {
-                    ...block.props,
-                    generated: block.props.generated ?? Boolean(block.props.src),
-                  },
-                } as Block)
-              : block,
+            {
+              if (block.type !== 'voice') return block;
+              const legacyDefault = block.props.voiceName === 'x6_lingyuyan_pro'
+                && block.props.speed === 60
+                && block.props.volume === 50
+                && block.props.ttsCacheKey === undefined;
+              return {
+                ...block,
+                props: {
+                  ...block.props,
+                  voiceName: legacyDefault ? 'x4_lingyuyan' : block.props.voiceName || 'x4_lingyuyan',
+                  speed: legacyDefault ? 68 : block.props.speed ?? 68,
+                  volume: legacyDefault ? 56 : block.props.volume ?? 56,
+                  pitch: block.props.pitch ?? 48,
+                  generated: block.props.generated ?? Boolean(block.props.src),
+                  ttsCacheKey: block.props.ttsCacheKey,
+                },
+              } as Block;
+            },
           )
         : [],
       assets: Array.isArray(snap.assets) ? snap.assets : [],
+      sourceMedia: Array.isArray(snap.sourceMedia) ? snap.sourceMedia : [],
+      storyAssembly: snap.storyAssembly,
+      storyAssemblyVersions: Array.isArray(snap.storyAssemblyVersions) ? snap.storyAssemblyVersions : [],
+      externalClipInboxes: Array.isArray(snap.externalClipInboxes) ? snap.externalClipInboxes : [],
+      storyVersionSelection: snap.storyVersionSelection,
       narration: snap.narration ?? null,
       scenes: Array.isArray(snap.scenes) ? snap.scenes : [],
+      reviews: normalizeSceneReviews(snap.reviews),
+      director: normalizeDirectorDecision(snap.director),
+      voiceTimelineUndo: null,
       themeId: snap.themeId && THEMES[snap.themeId] ? snap.themeId : 'midnight',
     });
     const ui = useUIStore.getState();
     ui.selectBlock(null);
     ui.setTime(0);
     ui.pause();
+    if (!preserveHistory) resetEditorHistory();
   },
 
   importProject: (json) => {
@@ -457,7 +697,34 @@ export const useEditorStore = create<EditorDocumentState>((set, get) => ({
     }
     get().importSnapshot(snap);
   },
+
+  importGeneratedSnapshot: (snapshot) => {
+    const { director, scenes, reviews } = get();
+    const locked = lockedSceneIds(director, scenes);
+    if (locked.length) throw new Error(`有 ${locked.length} 个导演锁定场景；自动生成不能覆盖它们，请先解锁或新建工程。`);
+    const nextIds = new Set(snapshot.scenes.map((scene) => scene.id));
+    get().importSnapshot({
+      ...snapshot,
+      director,
+      reviews: Object.fromEntries(Object.entries(reviews).filter(([sceneId]) => nextIds.has(sceneId))),
+    }, true);
+  },
+
+  applyVoiceTimeline: (snapshot, previous) => {
+    get().importSnapshot(snapshot, true);
+    set({ voiceTimelineUndo: previous });
+  },
+
+  undoVoiceTimeline: () => {
+    const previous = get().voiceTimelineUndo;
+    if (!previous) return false;
+    get().importSnapshot({ ...previous, ...invalidateHistoryApprovals(previous) }, true);
+    set({ voiceTimelineUndo: null });
+    return true;
+  },
 }));
+
+export const editorHistory = installEditorHistory(useEditorStore);
 
 /* ---------- 跨 store 选择器 ---------- */
 

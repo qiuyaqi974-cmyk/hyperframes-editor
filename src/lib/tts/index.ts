@@ -2,6 +2,7 @@ export interface TTSConfig {
   voiceName: string;
   speed: number;
   volume: number;
+  pitch: number;
 }
 
 export interface TTSResult {

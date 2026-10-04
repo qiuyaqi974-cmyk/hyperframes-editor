@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useEditorStore } from '@/store/editorStore';
 import { useUIStore } from '@/store/uiStore';
 import { projectDuration } from '@/store/projectDuration';
@@ -8,12 +7,14 @@ import EditorCanvas from '@/components/canvas/EditorCanvas';
 import PropertyPanel from '@/components/inspector/PropertyPanel';
 import Timeline from '@/components/timeline/Timeline';
 import { fileToNarration } from '@/lib/assets';
-import { generateHyperFramesHtml } from '@/lib/exportHtml';
+import { materializeExternalMediaForRender } from '@/lib/sourceMedia';
 import { loadAutosave, saveAutosave } from '@/lib/persistence';
 import { THEME_LIST } from '@/lib/themes';
 import { PlaybackProvider } from '@/render/playback';
 import type { ProjectSnapshot, ThemeId } from '@/types';
 import AgentMenu from '@/components/agent/AgentMenu';
+import EditorHistoryControls from '@/components/EditorHistoryControls';
+import { editorHistory } from '@/store/editorStore';
 
 /**
  * 播放引擎。
@@ -36,6 +37,7 @@ function usePlaybackEngine() {
 
       const ui = useUIStore.getState();
       const doc = useEditorStore.getState();
+
       const total = projectDuration(doc);
       let t = ui.currentTime + dt;
 
@@ -164,6 +166,13 @@ function useShortcuts() {
         el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable;
       if (typing) return;
 
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+        e.preventDefault();
+        if (e.key.toLowerCase() === 'y' || e.shiftKey) editorHistory.redo();
+        else editorHistory.undo();
+        return;
+      }
+
       const ui = useUIStore.getState();
       const doc = useEditorStore.getState();
 
@@ -184,7 +193,19 @@ function useShortcuts() {
       if (e.key === 'ArrowRight') ui.setTime(ui.currentTime + (e.shiftKey ? 1 : 1 / 30));
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const startGesture = () => editorHistory.begin();
+    const endGesture = () => editorHistory.end();
+    window.addEventListener('pointerdown', startGesture, true);
+    window.addEventListener('pointerup', endGesture);
+    window.addEventListener('pointercancel', endGesture);
+    window.addEventListener('blur', endGesture);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', startGesture, true);
+      window.removeEventListener('pointerup', endGesture);
+      window.removeEventListener('pointercancel', endGesture);
+      window.removeEventListener('blur', endGesture);
+    };
   }, []);
 }
 
@@ -274,19 +295,14 @@ export default function App() {
     }
   };
 
-  const handleHtmlExport = () => {
+  const handleHtmlExport = async () => {
     const state = useEditorStore.getState();
+    const { generateHyperFramesHtml } = await import('@/lib/exportHtml');
     download(
-      generateHyperFramesHtml(state.exportSnapshot()),
+      generateHyperFramesHtml(materializeExternalMediaForRender(state.exportSnapshot())),
       'text/html;charset=utf-8',
       `${state.projectName || 'hyperframes-video'}.html`,
     );
-  };
-
-  const handleMp4Export = () => {
-    const state = useEditorStore.getState();
-    download(generateHyperFramesHtml(state.exportSnapshot()), 'text/html;charset=utf-8', `${state.projectName || 'hyperframes-video'}.render.html`);
-    alert('渲染文件已下载。把它拖到项目文件夹里的“HTML转MP4.bat”上，就会自动生成 MP4。');
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -350,17 +366,18 @@ export default function App() {
           </button>
           <input ref={srtRef} type="file" accept=".srt,text/plain" className="hidden" onChange={handleSrtFile} />
           <button
-            onClick={handleHtmlExport}
+            onClick={() => void handleHtmlExport()}
             className="rounded-md bg-accent px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
           >
             导出 HTML
           </button>
           <AgentMenu />
+          <EditorHistoryControls />
           <button
-            onClick={handleMp4Export}
+            onClick={() => window.dispatchEvent(new Event('hyperframes:open-release'))}
             className="rounded-md bg-emerald-500 px-2.5 py-[5px] text-[11px] font-medium text-white hover:brightness-110"
           >
-            导出 MP4
+            渲染 RC
           </button>
           <button
             onClick={handleExport}
@@ -399,14 +416,9 @@ export default function App() {
       {/* 三栏 */}
       <div className="flex min-h-0 flex-1">
         <BlockLibrary />
-        <motion.main
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.35 }}
-          className="flex min-w-0 flex-1 flex-col"
-        >
+        <main className="flex min-w-0 flex-1 flex-col animate-[fade-in_350ms_ease-out]">
           <CanvasWithPlayback />
-        </motion.main>
+        </main>
         <PropertyPanel />
       </div>
 
@@ -414,19 +426,11 @@ export default function App() {
       <Timeline />
 
       {/* 首次进入的引导 */}
-      <AnimatePresence>
-        {blocks.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ duration: 0.25 }}
-            className="pointer-events-none fixed bottom-[268px] left-1/2 -translate-x-1/2 rounded-full border border-stroke bg-panel-2/95 px-4 py-2 text-[11.5px] text-ink-dim shadow-lg backdrop-blur"
-          >
+      {blocks.length === 0 && (
+          <div className="pointer-events-none fixed bottom-[268px] left-1/2 -translate-x-1/2 animate-[intro-rise_250ms_ease-out] rounded-full border border-stroke bg-panel-2/95 px-4 py-2 text-[11.5px] text-ink-dim shadow-lg backdrop-blur">
             闭环体验：左侧点一个积木 → 画布出现 → 右侧改参数 → 底部拖时间轴看动画
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </div>
   );
 }

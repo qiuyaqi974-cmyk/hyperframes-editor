@@ -94,6 +94,7 @@ export function scenePlanToSnapshot(plan: ScenePlan, assets: Asset[] = []): Proj
     const sceneBlocks = scenePlan.blocks.map((blockPlan) =>
       makeBlock(blockPlan, canvas, layer++, sceneStart, assets),
     );
+    for (const block of sceneBlocks) block.sceneId = scenePlan.id || `scene_${index + 1}`;
     blocks.push(...sceneBlocks);
     scenes.push({
       id: scenePlan.id || `scene_${index + 1}`,

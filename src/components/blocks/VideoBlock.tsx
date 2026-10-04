@@ -26,11 +26,11 @@ export default function VideoBlock({ block, frame, width, height }: Props) {
 
   useEffect(() => {
     let active = true;
-    const bridge = (window as Window & { hyperframesElectron?: { loadVideoAsset?: (path: string) => Promise<string> } }).hyperframesElectron;
-    setResolvedSrc(isLocalPath && bridge?.loadVideoAsset ? null : props.src);
-    if (!props.src || !isLocalPath || !bridge?.loadVideoAsset) return () => { active = false; };
-    void bridge.loadVideoAsset(props.src)
-      .then((dataUrl) => { if (active) setResolvedSrc(dataUrl); })
+    const bridge = (window as Window & { hyperframesElectron?: { registerSourceMedia?: (path: string) => Promise<{ url: string }> } }).hyperframesElectron;
+    setResolvedSrc(isLocalPath && bridge?.registerSourceMedia ? null : props.src);
+    if (!props.src || !isLocalPath || !bridge?.registerSourceMedia) return () => { active = false; };
+    void bridge.registerSourceMedia(props.src)
+      .then((result) => { if (active) setResolvedSrc(result.url); })
       .catch((error) => console.error('video asset load failed', error));
     return () => { active = false; };
   }, [isLocalPath, props.src]);
@@ -40,8 +40,10 @@ export default function VideoBlock({ block, frame, width, height }: Props) {
     if (!v || !resolvedSrc) return;
 
     const media = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : null;
-    let target = Math.max(0, frame.localTime);
-    if (media) target = props.loop ? target % media : Math.min(target, media);
+    const sourceIn = Math.max(0, props.sourceIn ?? 0);
+    const sourceOut = props.sourceOut && props.sourceOut > sourceIn ? props.sourceOut : media;
+    let target = sourceIn + Math.max(0, frame.localTime);
+    if (media) target = props.loop && !props.externalSourceId ? target % media : Math.min(target, sourceOut ?? media, media);
 
     const shouldRun = isPlaying && frame.active && props.playing;
 
@@ -53,7 +55,7 @@ export default function VideoBlock({ block, frame, width, height }: Props) {
       if (!v.paused) v.pause();
       if (Math.abs(v.currentTime - target) > 0.03) v.currentTime = target;
     }
-  }, [frame.localTime, frame.active, isPlaying, props.loop, props.playing, resolvedSrc]);
+  }, [frame.localTime, frame.active, isPlaying, props.externalSourceId, props.loop, props.playing, props.sourceIn, props.sourceOut, resolvedSrc]);
 
   useEffect(() => {
     const v = ref.current;

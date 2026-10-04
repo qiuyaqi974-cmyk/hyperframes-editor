@@ -18,6 +18,7 @@ export function generateProjectSnapshot(input: AgentProjectInput): ProjectSnapsh
 
   const canvas = { ...CANVAS_DEFAULT };
   const estimatedDuration = Math.min(60, Math.max(3, Math.ceil((script.length / 4.5) * 2) / 2));
+  const sceneId = 'scene-1';
 
   const title = createTextBlock(canvas, 0, 0);
   title.name = 'AI标题';
@@ -27,6 +28,7 @@ export function generateProjectSnapshot(input: AgentProjectInput): ProjectSnapsh
   title.props.fontSize = 108;
   title.props.maxWidth = 1400;
   title.duration = Math.min(4, estimatedDuration);
+  title.sceneId = sceneId;
 
   const voice = createVoiceBlock(canvas, 1, 0);
   voice.name = 'AI旁白';
@@ -37,6 +39,7 @@ export function generateProjectSnapshot(input: AgentProjectInput): ProjectSnapsh
   voice.props.duration = 0;
   voice.props.generated = false;
   voice.duration = estimatedDuration;
+  voice.sceneId = sceneId;
 
   const subtitle = createSubtitleBlock(canvas, 2, 0);
   subtitle.name = 'AI字幕占位';
@@ -44,6 +47,7 @@ export function generateProjectSnapshot(input: AgentProjectInput): ProjectSnapsh
   subtitle.position = getLayoutPosition(subtitle.layoutPreset);
   subtitle.props.text = script;
   subtitle.duration = estimatedDuration;
+  subtitle.sceneId = sceneId;
 
   return {
     app: 'hyperframes-editor',
@@ -54,7 +58,7 @@ export function generateProjectSnapshot(input: AgentProjectInput): ProjectSnapsh
     blocks: [title, voice, subtitle],
     assets: [],
     narration: null,
-    scenes: [],
+    scenes: [{ id: sceneId, index: 1, start: 0, end: estimatedDuration, duration: estimatedDuration, text: script }],
     updatedAt: new Date().toISOString(),
   };
 }

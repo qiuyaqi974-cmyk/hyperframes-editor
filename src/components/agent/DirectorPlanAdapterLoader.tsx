@@ -17,7 +17,7 @@ export default function DirectorPlanAdapterLoader() {
       const directorPlan = JSON.parse(await file.text());
       const scenePlan = directorPlanToScenePlan(directorPlan);
       const snapshot = scenePlanToSnapshot(scenePlan, useEditorStore.getState().assets);
-      useEditorStore.getState().importSnapshot(snapshot);
+      useEditorStore.getState().importGeneratedSnapshot(snapshot);
       setCurrentScenePlan(scenePlan);
       setStatus(`已导入：${scenePlan.scenes.length} 个场景`);
     } catch (error) {

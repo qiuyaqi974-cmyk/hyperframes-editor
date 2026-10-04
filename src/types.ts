@@ -86,6 +86,11 @@ export interface TextProps {
 export interface VideoProps {
   assetId: string | null;
   src: string | null;
+  /** 大素材只保存本地引用，不把整段视频塞进工程 JSON。 */
+  externalSourceId?: string;
+  /** 原片中的入点 / 出点（秒）。 */
+  sourceIn?: number;
+  sourceOut?: number;
   /** 铺满整个合成作为背景层 */
   background: boolean;
   width: number;
@@ -246,9 +251,12 @@ export interface VoiceProps {
   voiceName: string;
   speed: number;
   volume: number;
+  pitch: number;
   src: string | null;
   duration: number;
   generated: boolean;
+  /** 文案与音色参数的指纹；相同则批量生成时直接复用音频。 */
+  ttsCacheKey?: string;
   /** 编辑器展示用的占位卡片尺寸与通用视觉参数。 */
   width: number;
   height: number;
@@ -382,6 +390,314 @@ export interface Asset {
   size: number;
 }
 
+/** 本地长视频素材。原片永不改写；proxyPath 仅用于流畅预览。 */
+export interface ExternalMediaSource {
+  id: string;
+  name: string;
+  path: string;
+  proxyPath?: string;
+  duration: number;
+  width: number;
+  height: number;
+  size: number;
+  status: 'original' | 'proxy-ready' | 'missing';
+  waveform?: {
+    peaks: number[];
+    generatedAt: string;
+  };
+  transcript?: SourceTranscriptSegment[];
+  transcription?: SourceTranscriptionMeta;
+  eventMarkers?: SourceEventMarker[];
+  roughCutPlan?: SourceRoughCutPlan;
+  createdAt: string;
+}
+
+export interface SourceTranscriptWord {
+  start: number;
+  end: number;
+  word: string;
+  probability?: number;
+}
+
+export interface SourceTranscriptSegment {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+  words?: SourceTranscriptWord[];
+}
+
+export interface SourceTranscriptionMeta {
+  backend: 'faster-whisper' | 'imported';
+  model: string;
+  language: string;
+  generatedAt: string;
+  sourceFingerprint?: string;
+  wordTimestamps: boolean;
+  cached?: boolean;
+}
+
+export type RoughCutCandidateDecision = 'review' | 'keep' | 'drop';
+
+export type SourceEventMarkerKind = 'action' | 'highlight' | 'exclude';
+
+export interface SourceEventMarker {
+  id: string;
+  label: string;
+  start: number;
+  end: number;
+  kind: SourceEventMarkerKind;
+  createdAt: string;
+  visualConfirmed: true;
+  semantics?: SourceActionSemantics;
+}
+
+/** 人工观察的视觉语义；来源签名用于提示重新映射/换片后的过期记录。 */
+export interface SourceActionSemantics {
+  subject: string;
+  action: string;
+  object: string;
+  result: string;
+  shot: 'unspecified' | 'wide' | 'medium' | 'closeup' | 'detail';
+  tags: string[];
+  method: 'human-observed';
+  reviewedAt: string;
+  sourceSignature: string;
+  start: number;
+  end: number;
+  /** 模型只提供候选；这里保存人工确认所依据的非图像证据回执。 */
+  visualEvidence?: SourceActionVisualEvidence;
+}
+
+export interface SourceActionVisualEvidence {
+  source: 'model-assisted';
+  mode: 'single-frame' | 'cross-frame';
+  providerId: string;
+  provider: string;
+  model: string;
+  analysisPass: 'initial' | 'refinement';
+  transcriptIncluded?: boolean;
+  requestPayload?: {
+    requestId: string;
+    requestedAt: string;
+    imageCount: number;
+    imageBytes: number;
+    transcriptCharacters: number;
+    spanSeconds: number;
+    sessionRequestNumber: number;
+    tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    duplicateFrameReview?: {
+      confirmed: true;
+      confirmedAt: string;
+      groups: Array<{ sha256: string; frameIds: string[] }>;
+    };
+    similarFrameReview?: {
+      confirmed: true;
+      confirmedAt: string;
+      maxHammingDistance: number;
+      pairs: Array<{ firstFrameId: string; secondFrameId: string; hammingDistance: number }>;
+    };
+    /** sha256 对 JPEG 解码字节取值；旧回执可能没有该字段。 */
+    frames: Array<{ id: string; time: number; sha256?: string; perceptualHash?: string }>;
+  };
+  frames: Array<{ id: string; time: number; windowStart: number; windowEnd: number }>;
+  proposal: Pick<SourceActionSemantics, 'subject' | 'action' | 'object' | 'result' | 'shot' | 'tags'>;
+  continuity?: 'state-change' | 'possible-continuation' | 'uncertain';
+  visibleEvidence?: string;
+  changeWindows?: Array<{
+    beforeFrameId: string;
+    afterFrameId: string;
+    start: number;
+    end: number;
+    assessment: 'visible-change' | 'possible-change' | 'no-visible-change';
+    evidence: string;
+    uncertainty: string;
+    confidence: number;
+  }>;
+  uncertainty: string;
+  confidence: number;
+  refinementComparison?: SourceActionVisualRefinementComparison;
+  refinementReview?: {
+    acknowledged: true;
+    resolution: 'human-confirmed-final-fields';
+    reviewedAt: string;
+  };
+}
+
+export interface SourceActionVisualRefinementComparison {
+  status: 'consistent' | 'changed';
+  changedFields: Array<'action' | 'result' | 'continuity' | 'change-windows'>;
+  initial: {
+    frameIds: string[];
+    action: string;
+    result: string;
+    continuity: 'state-change' | 'possible-continuation' | 'uncertain';
+    changeWindowAssessments: Array<'visible-change' | 'possible-change' | 'no-visible-change'>;
+    confidence: number;
+  };
+  refined: {
+    frameIds: string[];
+    action: string;
+    result: string;
+    continuity: 'state-change' | 'possible-continuation' | 'uncertain';
+    changeWindowAssessments: Array<'visible-change' | 'possible-change' | 'no-visible-change'>;
+    confidence: number;
+  };
+}
+
+export interface SourceRoughCutCandidate {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+  decision: RoughCutCandidateDecision;
+  boundary: 'word' | 'segment' | 'manual';
+  origin?: 'speech' | 'event';
+  markerId?: string;
+  pauseBefore: number | null;
+  pauseAfter: number | null;
+  reason: string;
+  /** 基于已确认视觉语义与转写的待审建议；不会自动改变 decision 或通过任何门禁。 */
+  suggestion?: {
+    decision: RoughCutCandidateDecision;
+    narrativeRole?: NarrativeRole;
+    reason: string;
+    transcriptEvidence: boolean;
+    confirmedVisualMarkerIds: string[];
+  };
+  /** 该片段在最终叙事中的职责；不是素材内容分类。 */
+  narrativeRole?: NarrativeRole;
+  visualReview?: {
+    status: 'reviewing' | 'approved' | 'adjust';
+    checkedAt: string;
+    windowStart: number;
+    windowEnd: number;
+    note?: string;
+  };
+}
+
+export interface SourceRoughCutPlan {
+  version: 1;
+  sourceId: string;
+  generatedAt: string;
+  strategy: {
+    pauseThreshold: number;
+    paddingBefore: number;
+    paddingAfter: number;
+    pacing: DirectorDecision['pacing'];
+    objective: string;
+    thesis: string;
+    /** 用于判断已确认的编排是否落后于当前导演 Brief。 */
+    directorUpdatedAt?: string;
+  };
+  candidates: SourceRoughCutCandidate[];
+  /** 保留片段的最终播放顺序；只有明确确认后才能写入时间轴。 */
+  assembly?: {
+    order: string[];
+    confirmedAt?: string;
+  };
+  appliedAt?: string;
+  appliedBlockIds?: string[];
+}
+
+export interface SourceStoryAssemblyItem {
+  sourceId: string;
+  candidateId: string;
+  narrativeRole?: NarrativeRole;
+}
+
+/** 跨原片的全局粗剪编排。只保存引用和决策，不复制媒体或转写。 */
+export interface SourceStoryAssembly {
+  version: 1;
+  generatedAt: string;
+  directorUpdatedAt: string;
+  sourceSignatures: Record<string, string>;
+  items: SourceStoryAssemblyItem[];
+  confirmedAt?: string;
+  preview?: {
+    path: string;
+    duration: number;
+    generatedAt: string;
+    structureFingerprint: string;
+    boundaries: Array<{ outputTime: number; beforeIndex: number; afterIndex: number; status?: 'approved' | 'adjust' }>;
+    reviewedAt?: string;
+  };
+  appliedAt?: string;
+  appliedBlockIds?: string[];
+}
+
+export interface SourceStoryAssemblyVersionSegment {
+  sourceId: string;
+  candidateId: string;
+  sourceName: string;
+  text: string;
+  start: number;
+  end: number;
+  narrativeRole?: NarrativeRole;
+}
+
+/** 不可变的全局粗剪方案快照；恢复时不会恢复 appliedBlockIds。 */
+export interface SourceStoryAssemblyVersion {
+  externalTimeline?: ExternalTimeline;
+  externalCandidates?: Array<{ sourceId: string; sourcePath: string; candidate: SourceRoughCutCandidate }>;
+  id: string;
+  label: string;
+  note: string;
+  createdAt: string;
+  signature: string;
+  assembly: SourceStoryAssembly;
+  segments: SourceStoryAssemblyVersionSegment[];
+  provenance?: {
+    kind: 'external-edl' | 'external-otio' | 'external-fcpxml';
+    parentVersionId: string;
+    importedAt: string;
+    fileName: string;
+  };
+}
+
+export interface SourceStoryVersionSelection {
+  winnerVersionId: string;
+  comparedVersionIds: [string, string];
+  rationale: string;
+  rejectedReasons: Record<string, string>;
+  selectedAt: string;
+}
+
+export interface ExternalClipReview {
+  id: string;
+  rangeIndex: number;
+  sourceId: string;
+  sourcePath: string;
+  start: number;
+  end: number;
+  label: string;
+  text: string;
+  narrativeRole?: NarrativeRole;
+  mappingStatus: 'pending' | 'confirmed';
+  boundaryStatus: 'word' | 'manual';
+  boundaryConfirmed: boolean;
+  visualStatus: 'pending' | 'generated' | 'approved';
+  decision: 'pending' | 'approve' | 'reject';
+  reason: string;
+}
+
+export interface ExternalClipInbox {
+  externalTimeline?: ExternalTimeline;
+  id: string;
+  fileName: string;
+  importedAt: string;
+  parentVersionId: string;
+  input: unknown;
+  clips: ExternalClipReview[];
+  savedVersionId?: string;
+}
+
+/** Original OTIO document retained independently of the flat source review list. */
+export interface ExternalTimeline {
+  format: 'otio';
+  document: Record<string, unknown>;
+}
+
 export interface NarrationTrack {
   id: string;
   name: string;
@@ -397,6 +713,83 @@ export interface Scene {
   end: number;
   duration: number;
   text: string;
+}
+
+export type SceneReviewStatus = 'pending' | 'approved' | 'changes' | 'redo';
+
+export interface SceneReviewComment {
+  id: string;
+  /** 工程时间轴上的绝对秒数。 */
+  time: number;
+  text: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
+export interface SceneReview {
+  sceneId: string;
+  status: SceneReviewStatus;
+  comments: SceneReviewComment[];
+  updatedAt: string;
+}
+
+export type NarrativeRole = 'hook' | 'context' | 'argument' | 'proof' | 'turn' | 'cta' | 'custom';
+
+export interface DirectorSceneDecision {
+  sceneId: string;
+  narrativeRole: NarrativeRole;
+  intent: string;
+  visualRule: string;
+  /** 锁定后，自动生成、重新配音和素材重匹配不得覆盖此场景。 */
+  locked: boolean;
+}
+
+export interface DirectorLearningCitation {
+  recordId: string;
+  role: 'support' | 'counterexample' | 'context';
+  freshness: 'fresh' | 'aging' | 'expired';
+  credentialStatus: 'verified';
+  summary: string;
+  hypothesis: string;
+  scope: {
+    platforms: string[];
+    accounts: string[];
+    contentTypes: string[];
+    audiences: string[];
+    projectNames: string[];
+    topics: string[];
+  };
+  provenance: {
+    observationIds: string[];
+    rcIds: string[];
+    renderSha256: string[];
+    sourceConfirmedAt: string;
+  };
+}
+
+export interface DirectorLearningApplication {
+  proposalId: string;
+  appliedAt: string;
+  rationale: string;
+  fields: string[];
+  citations: DirectorLearningCitation[];
+}
+
+/** 工程级导演决策：描述这条视频为什么存在，以及所有 Agent 必须遵守的边界。 */
+export interface DirectorDecision {
+  objective: string;
+  audience: string;
+  thesis: string;
+  contentType: 'knowledge' | 'product' | 'story' | 'tutorial' | 'other';
+  tone: string;
+  pacing: 'calm' | 'balanced' | 'fast';
+  emotionArc: string;
+  endingAction: string;
+  visualRules: string;
+  /** 人工确认后应用到 Brief 的学习证据回执；不是自动规则。 */
+  learningApplications?: DirectorLearningApplication[];
+  scenes: Record<string, DirectorSceneDecision>;
+  updatedAt: string;
 }
 
 export interface CanvasConfig {
@@ -434,8 +827,15 @@ export interface ProjectSnapshot {
   canvas: CanvasConfig;
   blocks: Block[];
   assets: Asset[];
+  sourceMedia?: ExternalMediaSource[];
+  storyAssembly?: SourceStoryAssembly;
+  storyAssemblyVersions?: SourceStoryAssemblyVersion[];
+  externalClipInboxes?: ExternalClipInbox[];
+  storyVersionSelection?: SourceStoryVersionSelection;
   narration: NarrationTrack | null;
   scenes: Scene[];
+  reviews?: Record<string, SceneReview>;
+  director?: DirectorDecision;
   updatedAt: string;
 }
 
